@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Bundle the built web app as one offline HTML for browsers and WKWebView."""
+"""Bundle only the web demonstration. Native/Xcode files are left untouched."""
 import base64, pathlib, re
 root=pathlib.Path(__file__).resolve().parents[1]
 dist=root/'dist'
@@ -20,8 +20,8 @@ html=re.sub(r'<link[^>]*rel="manifest"[^>]*>','',html)
 html=html.replace('</head>','<style>'+css+'</style></head>')
 html=html.replace('</body>','<script>'+runtime.replace('</script','<\\/script')+'</script><script type="module">'+js.replace('</script','<\\/script')+'</script></body>')
 html='\n'.join(line.rstrip() for line in html.splitlines())+'\n'
-output=root/'ios/Norde/Norde/Web/index.html'
+output=root/'web-demo/index.html'
 output.parent.mkdir(parents=True,exist_ok=True)
 output.write_text(html)
 (root/'dist/Norde-Demo.html').write_text(html)
-print('Offline browser and iOS demo generated:',len(html),'characters')
+print('Standalone web demo generated:',len(html),'characters')
