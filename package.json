@@ -1,0 +1,26 @@
+{
+  "name": "norde-app",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "dev:server": "NODE_ENV=development NORDE_DEMO=1 node server.mjs",
+    "build": "vite build",
+    "start": "node server.mjs",
+    "demo": "NORDE_DEMO=1 node server.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "build:offline": "npm run build && python3 scripts/export-offline.py"
+  },
+  "dependencies": {
+    "lucide-react": "0.577.0",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "devDependencies": {
+    "vite": "7.3.7"
+  }
+}
