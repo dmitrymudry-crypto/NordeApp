@@ -1,3 +1,4 @@
+import { validateLead, LEAD_STATUSES } from './src/lead-schema.js';
 import http from 'node:http';
 import { DatabaseSync } from 'node:sqlite';
 import { randomBytes, scryptSync, timingSafeEqual, createHash } from 'node:crypto';
@@ -10,7 +11,8 @@ mkdirSync(dataDir, { recursive: true, mode: 0o700 });
 const db = new DatabaseSync(join(dataDir, 'norde.sqlite'));
 db.exec(`PRAGMA journal_mode=WAL; CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, email TEXT UNIQUE, name TEXT, hash TEXT, role TEXT);
 CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY, user_id TEXT, expires INTEGER);
-CREATE TABLE IF NOT EXISTS projects (id TEXT PRIMARY KEY, user_id TEXT, data TEXT);`);
+CREATE TABLE IF NOT EXISTS projects (id TEXT PRIMARY KEY, user_id TEXT, data TEXT);
+CREATE TABLE IF NOT EXISTS leads (id TEXT PRIMARY KEY, created_at TEXT NOT NULL, status TEXT NOT NULL, data TEXT NOT NULL, client_request_id TEXT UNIQUE);`);
 const demo = process.env.NORDE_DEMO === '1';
 const publicUser = u => ({ id:u.id, name:u.name, email:u.email, role:u.role });
 const stages = ['Anfrage','Planung','Demontage','Installation','Fliesen','Feinmontage','Abgeschlossen'];
@@ -56,6 +58,37 @@ const server=http.createServer(async(req,res)=>{
   if(path.startsWith('/api/')) {
    if(!['GET','HEAD'].includes(req.method)) {if(req.headers.origin&&new URL(req.headers.origin).host!==req.headers.host)return response(res,403,{error:'Anfrage nicht erlaubt.'});if(!req.headers['content-type']?.startsWith('application/json'))return response(res,415,{error:'JSON erwartet.'});}
    if(path==='/api/health')return response(res,200,{ok:true,demo});
+   if(path==='/api/leads'&&req.method==='POST') {
+     if(rateLimit(req.socket.remoteAddress+':lead',8))return response(res,429,{error:'Zu viele Anfragen. Bitte später erneut versuchen.'});
+     const input=await body(req);
+     if(input.website) return response(res,202,{accepted:true});
+     let lead;try{lead=validateLead(input);}catch(e){return bad(res,e.message);}
+     if(lead.clientRequestId) {
+       const existing=db.prepare('SELECT id FROM leads WHERE client_request_id=?').get(lead.clientRequestId);
+       if(existing)return response(res,200,{accepted:true,id:existing.id});
+     }
+     const entryId=id(),createdAt=new Date().toISOString();
+     db.prepare('INSERT INTO leads (id,created_at,status,data,client_request_id) VALUES (?,?,?,?,?)')
+       .run(entryId,createdAt,'Neu',JSON.stringify(lead),lead.clientRequestId||null);
+     // A notification provider is not configured here. An accepted lead is stored durably;
+     // do not claim that an email has been delivered.
+     return response(res,201,{accepted:true,id:entryId,emailDelivered:false});
+   }
+   if(path==='/api/leads'&&req.method==='GET') {
+     const who=session(req);
+     if(who?.role!=='admin')return response(res,403,{error:'Nur für das Norde Team.'});
+     const rows=db.prepare('SELECT id,created_at,status,data FROM leads ORDER BY created_at DESC LIMIT 250').all();
+     return response(res,200,{leads:rows.map(r=>({id:r.id,createdAt:r.created_at,status:r.status,...JSON.parse(r.data),photos:undefined}))});
+   }
+   if(/^\/api\/leads\/[a-f0-9]+$/.test(path)&&req.method==='PATCH') {
+     const who=session(req);
+     if(who?.role!=='admin')return response(res,403,{error:'Nur für das Norde Team.'});
+     const data=await body(req);
+     if(!LEAD_STATUSES.includes(data.status))return bad(res,'Unbekannter Status.');
+     const entryId=path.split('/')[3];
+     const changed=db.prepare('UPDATE leads SET status=? WHERE id=?').run(data.status,entryId);
+     return changed.changes ? response(res,200,{ok:true}) : response(res,404,{error:'Anfrage nicht gefunden.'});
+   }
    if(path==='/api/register'&&req.method==='POST') {
     if(rateLimit(req.socket.remoteAddress+':auth'))return response(res,429,{error:'Bitte später erneut versuchen.'});
     const b=await body(req);const email=b.email?.trim().toLowerCase();
