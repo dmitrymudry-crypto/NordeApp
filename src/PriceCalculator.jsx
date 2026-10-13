@@ -23,7 +23,7 @@ export default function PriceCalculator({ onRequest }) {
       </div>
       <div className="price-demo-warning" role="note">
         <CircleHelp size={19} />
-        <span><strong>Testmodus mit Beispiel-Aufpreisen.</strong> Noch kein verbindliches Angebot. Nur der bisher veröffentlichte Paketpreis von 12.949 € dient als Ausgangswert; alle Aufpreise müssen von Norde bestätigt werden.</span>
+        <span><strong>Testmodus mit Beispiel-Aufpreisen.</strong> Noch kein verbindliches Angebot. Der bestätigte Basispreis beträgt 12.949 € brutto für ein Komplettbad bis 6 m² inklusive Material und Sanitärausstattung. Alle Aufpreise sind vorläufig und müssen von Norde bestätigt werden.</span>
       </div>
       <section className="price-card" aria-labelledby="size-title">
         <div className="price-card-top"><span className="price-step">01</span><h2 id="size-title">Wie groß ist Ihr Bad?</h2></div>
@@ -57,10 +57,10 @@ export default function PriceCalculator({ onRequest }) {
       </section>
       <section className="price-total" aria-labelledby="price-total-heading">
         <div className="price-total-eyebrow"><Sparkles size={16}/> IHRE TESTKALKULATION</div>
-        <h2 id="price-total-heading">{result.eligible ? 'Ihr Beispielpreis' : 'Individuelle Kalkulation'}</h2>
+        <h2 id="price-total-heading">{result.eligible ? 'Ihr Beispielpreis (brutto)' : 'Individuelle Kalkulation'}</h2>
         <div className="price-main-total" key={result.total ?? 'custom'} aria-live="polite">{result.total === null ? 'Auf Anfrage' : format(result.total)}</div>
         {result.eligible ? <div className="price-breakdown">{result.items.filter(item => item.amount > 0).map(item => <div key={item.id}><span>{item.label}</span><strong>{format(item.amount)}</strong></div>)}</div> : <p className="price-explanation">Bei dieser Größe ist eine individuelle Kalkulation nötig. Ihre gewählten Optionen übernehmen wir trotzdem in die Anfrage.</p>}
-        <p className="price-disclaimer">Unverbindlicher Testwert. Leistungsumfang, Bauzustand, Materialauswahl, technische Voraussetzungen sowie der endgültige Preis werden persönlich abgestimmt.</p>
+        <p className="price-disclaimer">Bruttopreis inkl. gesetzlicher Umsatzsteuer. Unverbindlicher Testwert. Leistungsumfang, Bauzustand, Materialauswahl, technische Voraussetzungen sowie der endgültige Preis werden persönlich abgestimmt.</p>
         <button type="button" className="price-primary-cta" onClick={() => onRequest(makeInquiryPrefill(config))}>
           Konfiguration unverbindlich anfragen <ArrowRight size={20}/>
         </button>
