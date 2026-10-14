@@ -1,94 +1,2406 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { createRoot } from 'react-dom/client';
-import { ArrowUpRight, ArrowRight, ArrowLeft, Check, Plus, Home, Folder, Images, Gamepad2, Settings, LogOut, ChevronRight, Calendar, Clock, ShieldCheck, Camera, FileText, Download, Mail, X, CheckCircle2, Sparkles, Bath, Droplets, Grid2X2, Wrench, Menu, Bell, User, Star, Pause, Play, RotateCcw, Upload, CircleHelp } from 'lucide-react';
-import './style.css';
-import PriceCalculator from './PriceCalculator.jsx';
-import LeadForm from './LeadForm.jsx';
-import LeadInbox from './LeadInbox.jsx';
+import React, { useEffect, useRef, useState } from "react";
+import { createRoot } from "react-dom/client";
+import {
+  ArrowUpRight,
+  ArrowRight,
+  ArrowLeft,
+  Check,
+  Plus,
+  Home,
+  Folder,
+  Images,
+  Gamepad2,
+  Settings,
+  LogOut,
+  ChevronRight,
+  Calendar,
+  Clock,
+  ShieldCheck,
+  Camera,
+  FileText,
+  Download,
+  Mail,
+  X,
+  CheckCircle2,
+  Sparkles,
+  Bath,
+  Droplets,
+  Grid2X2,
+  Wrench,
+  Menu,
+  Bell,
+  User,
+  Star,
+  Pause,
+  Play,
+  RotateCcw,
+  Upload,
+  CircleHelp,
+} from "lucide-react";
+import "./style.css";
+import PriceCalculator from "./PriceCalculator.jsx";
+import LeadForm, { EMPTY_INQUIRY } from "./LeadForm.jsx";
+import PhotoInput from "./PhotoUpload.jsx";
+import {
+  DEFAULT_CONFIGURATION,
+  MATERIALS,
+  TOILETS,
+  VANITIES,
+  TILE_FORMATS,
+  FINISHES,
+} from "./bathroom-options.js";
+import { PRICE_CATALOGUE } from "./pricing.js";
+import LeadInbox from "./LeadInbox.jsx";
 const OFFLINE = window.NORDE_OFFLINE === true;
-const money=n=>new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:2}).format(n);
-const date=d=>d?new Date(d+'T12:00:00').toLocaleDateString('de-DE',{day:'numeric',month:'long',year:'numeric'}):'Noch in Abstimmung';
-const stages=['Anfrage','Planung','Demontage','Installation','Fliesen','Feinmontage','Abgeschlossen'];
-async function api(path,method='GET',data) {const r=await fetch('/api'+path,{method,headers:data?{'Content-Type':'application/json'}:{},body:data?JSON.stringify(data):undefined});const b=await r.json();if(!r.ok)throw Error(b.error||'Verbindung fehlgeschlagen.');return b;}
-function Brand(){return <div className="brand"><svg viewBox="0 0 40 42" aria-hidden="true"><path d="M3 39V14L13 3v36zM17 39V7l9 13v19zM30 39V24l8 12v3z" fill="currentColor"/></svg><span>NORDE<small>DEVELOPMENT</small></span></div>}
-function Button({children,variant='',...props}){return <button className={'button '+variant} {...props}>{children}</button>}
-function Badge({children,variant=''}){return <span className={'badge '+variant}>{children}</span>}
-function Field({label,children,hint}){const id=React.useId();return <label className="field"><span id={id}>{label}</span>{React.cloneElement(children,{'aria-labelledby':id,'aria-describedby':hint?id+'-hint':undefined})}{hint&&<small id={id+'-hint'}>{hint}</small>}</label>}
-function Modal({title,children,onClose}){const ref=useRef();useEffect(()=>{const prev=document.activeElement;const el=ref.current;el.focus();function key(e){if(e.key==='Escape')onClose();if(e.key==='Tab'){const all=[...el.querySelectorAll('button, a[href], input, select, textarea, [tabindex="0"]')].filter(x=>!x.disabled);const first=all[0],last=all.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}}el.addEventListener('keydown',key);return()=>{el.removeEventListener('keydown',key);prev?.focus();};},[]);return <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}><section ref={ref} className="modal" role="dialog" aria-modal="true" aria-label={title} tabIndex={-1}><div className="modal-head"><h2>{title}</h2><button className="icon-button" onClick={onClose} aria-label="Schließen"><X/></button></div>{children}</section></div>}
-const privacy=<><p>{OFFLINE ? 'Diese Offline-Demo speichert Ihre Beispieldaten ausschließlich auf diesem Gerät. Die Anmeldung wird simuliert; Passwörter werden nicht gespeichert. Anfragen, Fotos und Dokumente werden nicht an Norde gesendet.' : 'Dieser Entwicklungsprototyp speichert Konto- und Projektdaten auf dem lokalen Norde-Server. Fotos, Adresse und Kontaktdaten werden für die Bearbeitung Ihrer Beratungsanfrage verwendet und sind nur für Ihr Konto und das Norde Team sichtbar.'}</p><p>Es werden keine Daten an Zahlungsanbieter oder Werbedienste gesendet. Verwenden Sie zum Testen bitte Beispieldaten. Die endgültige Datenschutzerklärung mit Verantwortlichem, Rechtsgrundlagen, Aufbewahrungsfristen und Betroffenenrechten wird vor dem öffentlichen Start ergänzt.</p></>;
-function App(){
- const [calculatorPrefill,setCalculatorPrefill]=useState(null);
-  const [user,setUser]=useState(null),[loading,setLoading]=useState(true),[demo,setDemo]=useState(false),[projects,setProjects]=useState([]),[page,setPage]=useState('home'),[selected,setSelected]=useState(null),[auth,setAuth]=useState(null),[info,setInfo]=useState(null),[toast,setToast]=useState(''),[error,setError]=useState(''),[onboarding,setOnboarding]=useState(()=>{try{return localStorage.getItem('norde-intro-v2')==='done'?null:0;}catch{return 0;}});
- const authNext=useRef('home');
- const notify=msg=>setToast(msg);
- async function refresh(){const b=await api('/projects');setProjects(b.projects);}
- useEffect(()=>{(async()=>{try{const h=await api('/health');setDemo(h.demo);try{const b=await api('/me');setUser(b.user);await refresh();}catch(e){if(e.message!=='Bitte zuerst anmelden.')setError(e.message);}}catch{setError('Die Verbindung ist gerade nicht verfügbar.');}finally{setLoading(false);}})();},[]);
- useEffect(()=>{if(toast){const t=setTimeout(()=>setToast(''),4500);return()=>clearTimeout(t);}},[toast]);
- useEffect(()=>{if(!user)return;const t=setInterval(()=>refresh().catch(()=>{}),15000);return()=>clearInterval(t);},[user]);
- function finishIntro(){setOnboarding(null);try{localStorage.setItem('norde-intro-v2','done');}catch{}}
- function navigate(p){setPage(p);setSelected(null);window.scrollTo({top:0,behavior:'instant'});}
- async function signedIn(u){setUser(u);setSelected(null);setAuth(null);await refresh();const next=authNext.current;authNext.current='home';finishIntro();navigate(next);}
- async function demoLogin(role='client'){try{const b=await api('/demo','POST',{role});setUser(b.user);await refresh();setSelected(null);navigate(role==='admin'?'admin':'home');}catch(e){notify(e.message);}}
- async function request(prefill=null){if(prefill && typeof prefill==='object' && !prefill.nativeEvent)setCalculatorPrefill(prefill);else setCalculatorPrefill(null);setError('');if(!user&&OFFLINE){try{const b=await api('/demo','POST',{role:'client'});setUser(b.user);await refresh();finishIntro();navigate('configure');}catch(e){setError(e.message);}return;}if(!user){authNext.current='configure';setAuth('register');return;}finishIntro();navigate('configure');}
- async function logout(){try{await api('/logout','POST',{});setUser(null);setProjects([]);navigate('home');notify('Abgemeldet.');}catch(e){notify(e.message);}}
- function openProject(p){setSelected(p.id);setPage(user?.role==='admin'?'admin':'projects');window.scrollTo({top:0,behavior:'instant'});}
- const active=projects[0],project=projects.find(p=>p.id===selected);
- const title=({home:'Mein Norde',configure:'Beratung',calculator:'Preisrechner',lead:'Anfrage',inbox:'Anfragen',projects:'Projekte',game:'Fliesenpause',settings:'Einstellungen',admin:'Norde Team'})[page];
- if(loading)return <div className="loading"><Brand/><span className="loading-dot"/></div>;
- const overlays=<>{auth&&<AuthModal mode={auth} setMode={setAuth} onClose={()=>{setAuth(null);authNext.current='home';}} onSuccess={signedIn} demo={demo} demoLogin={async()=>{await demoLogin();setAuth(null);finishIntro();if(authNext.current==='configure'){finishIntro();navigate('configure');authNext.current='home';}}} onPrivacy={()=>setInfo({title:'Datenschutz',content:privacy})}/>} {info&&<Modal title={info.title} onClose={()=>setInfo(null)}>{info.content}</Modal>}{toast&&<div className="toast" role="status"><CheckCircle2 size={19}/>{toast}<button onClick={()=>setToast('')} aria-label="Meldung schließen"><X size={16}/></button></div>}</>;
- if(onboarding!==null)return <div className="onboarding" key={onboarding}><header className="intro-header"><Brand/>{onboarding===1&&<button className="icon-button" aria-label="Zurück zum Willkommen" onClick={()=>setOnboarding(0)}><ArrowLeft size={22}/></button>}</header><div className={'intro-content slide-'+onboarding}><div className="intro-art" aria-hidden="true"><div className="art-orbit orbit-one"/><div className="art-orbit orbit-two"/><div className="art-disc">{onboarding===0?<Bath size={78} strokeWidth={1.15}/>:<Droplets size={73} strokeWidth={1.15}/>}</div><span className="art-spark"><Sparkles size={21} strokeWidth={1.5}/></span></div><div className="intro-copy"><span className="eyebrow">{onboarding===0?'WILLKOMMEN BEI NORDE':'GANZ IN IHREM TEMPO'}</span><h1>{onboarding===0?<>Ein gutes Gefühl.<br/>Von Anfang an.</>:<>Ihr Bad.<br/>Ihre Wünsche.</>}</h1><p>{onboarding===0?'Schön, dass Sie da sind. Wir begleiten Sie zu Ihrem neuen Bad.':'Ein paar einfache Fragen. Ihre Ideen. Und der erste Schritt zu einem Bad, das zu Ihnen passt.'}</p></div></div><div className="intro-actions"><div className="intro-dots" aria-label={'Schritt '+(onboarding+1)+' von 2'}><span className={onboarding===0?'active':''}/><span className={onboarding===1?'active':''}/></div>{error&&<div className="error" role="alert">{error}</div>}<Button variant="full" onClick={onboarding===0?()=>setOnboarding(1):request}>{onboarding===0?'Los geht’s':'Mein Bad planen'}<ArrowRight size={19}/></Button>{onboarding===0?<button className="quiet-button" onClick={()=>{authNext.current='home';setAuth('login');}}>Ich habe bereits ein Konto</button>:<button className="quiet-button" onClick={()=>{finishIntro();navigate('home');}}>Später, erst einmal umsehen</button>}<span className="demo-caption">{OFFLINE?'Demo · nur Beispieldaten':'Ihr persönlicher Badbegleiter'}</span></div>{overlays}</div>;
- return <div className="app-shell"><header className="app-header"><span className="header-wordmark">norde<span>•</span></span><span className="header-section">{title}</span>{page!=='settings'?<button className="header-avatar" onClick={()=>navigate('settings')} aria-label="Einstellungen öffnen">{user?.name[0]||<User size={18}/>}</button>:<span className="header-spacer"/>}</header><main className={'app-content page-'+page}>{error&&<div className="error" role="alert">{error}</div>}
- {page==='home'&&<><div className="home-greeting"><span className="eyebrow">ALLES IN IHREM TEMPO</span><h1>{user?`Hallo, ${user.name.split(' ')[0]}.`:'Schön, dass Sie da sind.'}</h1><p>{active?'Ein Blick auf Ihr Badprojekt.':'Ihr neues Bad beginnt mit einer guten Idee.'}</p></div>{active?<button className="focus-project" onClick={()=>openProject(active)}><div className="focus-top"><span className="soft-icon"><Bath size={25} strokeWidth={1.5}/></span><Badge variant="green">{active.status}</Badge></div><h2>Ihr Badprojekt</h2><p>{active.address}</p><div className="focus-progress"><strong>{active.progress}<small>%</small></strong><span>Schritt für Schritt<br/>zu Ihrem neuen Bad.</span></div><div className="progress-track"><span style={{width:active.progress+'%'}}/></div><div className="focus-bottom"><span>Projekt ansehen</span><ArrowRight size={20}/></div></button>:<section className="home-plan"><span className="soft-icon"><Bath size={31} strokeWidth={1.25}/></span><h2>Platz für Ihr neues Bad.</h2><p>Teilen Sie Ihre Wünsche.<br/>Den Rest planen wir gemeinsam.</p><Button variant="full" onClick={request}>Beratung starten<ArrowRight size={18}/></Button><small>Unverbindlich. Persönlich. In wenigen Schritten.</small></section>}
- <div className="home-secondary"><button onClick={request}><span><Plus size={21}/><b>{active?'Neue Beratung':'Ihre Wünsche planen'}</b></span><ChevronRight size={17}/></button><button onClick={()=>navigate('calculator')}><span><Sparkles size={21}/><b>Bad-Preisrechner testen</b></span><ChevronRight size={17}/></button><button onClick={()=>navigate('game')}><span><Gamepad2 size={21}/><b>Eine kleine Fliesenpause</b></span><ChevronRight size={17}/></button></div><p className="home-signoff">Ihr Zuhause. Unser Handwerk.</p></>}
- {page==='calculator'&&<PriceCalculator onRequest={data=>{setCalculatorPrefill(data);navigate('lead');}}/>}
-  {page==='lead'&&<LeadForm configuration={calculatorPrefill||{area:5,equipment:'Bodengleiche Dusche',extras:[]}} onBack={()=>navigate('calculator')}/>}
-  {page==='inbox'&&user?.role==='admin'&&<LeadInbox/>}
-  {page==='configure'&&<><button className="text-button app-back" onClick={()=>navigate('home')}><X size={18}/>Beratung verlassen</button>{user?<Configurator user={user} prefill={calculatorPrefill} onSubmitted={async()=>{await refresh();finishIntro();navigate('home');setInfo({title:'Vielen Dank für Ihre Anfrage.',content:<div className="submission-success"><span className="soft-icon"><Check size={34}/></span><p>{OFFLINE?'Ihre Demo-Anfrage ist auf diesem Gerät gespeichert.':'Ihre Anfrage ist eingegangen. Wir melden uns mit den nächsten Schritten.'}</p><Button variant="full" onClick={()=>{setInfo(null);navigate('projects');}}>Mein Projekt ansehen<ArrowRight size={18}/></Button></div>});}} onPrivacy={()=>setInfo({title:'Datenschutz',content:privacy})}/>:<Empty title="Beginnen wir mit Ihren Wünschen." text="Erstellen Sie ein Konto, um Ihre Beratung zu speichern." action={request} label="Beratung starten"/>}</>}
- {(page==='projects'||page==='admin')&&(user?(project?<ProjectDetail project={project} admin={user.role==='admin'} onBack={()=>setSelected(null)} onChanged={async()=>{await refresh();notify('Gespeichert.');}} notify={notify}/>:<><div className="page-heading"><h1>{page==='admin'?'Anfragen & Projekte':'Ihre Projekte.'}</h1><p>{page==='admin'?'Ihre Kunden. Alle nächsten Schritte.':'Alles Wichtige zu Ihrem Bad an einem Ort.'}</p></div>{projects.length?<div className="project-list">{projects.map(p=><button className="project-list-card" key={p.id} onClick={()=>openProject(p)}><span className="soft-icon"><Bath size={24}/></span><div className="project-list-info"><Badge variant="green">{p.status}</Badge><h3>{p.name} · Badsanierung</h3><p>{p.address}</p><div className="progress-track"><span style={{width:p.progress+'%'}}/></div></div><ChevronRight size={20}/></button>)}</div>:<Empty title="Hier entsteht Ihr Projekt." text="Starten Sie mit einer persönlichen Beratung." action={request} label="Beratung starten"/>}<Button variant="outline full" onClick={request}><Plus size={18}/>Neue Beratung</Button></>):<Empty title="Ihr Projekt wartet auf Sie." text="Melden Sie sich an oder starten Sie eine Beratung." action={()=>{authNext.current='projects';setAuth('login');}} label="Anmelden"/>)}
- {page==='game'&&<TileGame/>}
- {page==='settings'&&<><div className="page-heading"><h1>Ganz persönlich.</h1><p>Ihr Konto und die kleinen Dinge.</p></div><div className="profile-card"><span className="profile-avatar">{user?.name[0]||<User size={27}/>}</span><div><h2>{user?.name||'Willkommen bei Norde'}</h2><p>{user?.email||'Ihr persönlicher Badbegleiter'}</p></div></div><div className="settings-group">{user?.role==='admin'&&<button onClick={()=>navigate('inbox')}><span><Mail size={20}/>Neue Anfragen</span><ChevronRight size={17}/></button>}{!user&&<button onClick={()=>{authNext.current='home';setAuth('login');}}><span><User size={20}/>Anmelden oder registrieren</span><ChevronRight size={17}/></button>}<a href="mailto:info@norde-dev.de"><span><Mail size={20}/>Kontakt zum Norde Team</span><ArrowUpRight size={17}/></a><button onClick={()=>setInfo({title:'Datenschutz',content:privacy})}><span><ShieldCheck size={20}/>Datenschutz</span><ChevronRight size={17}/></button><button onClick={()=>setOnboarding(0)}><span><Sparkles size={20}/>Begrüßung noch einmal ansehen</span><ChevronRight size={17}/></button></div>{demo&&<><span className="settings-label">DEMO AUSPROBIEREN</span><div className="settings-group"><button onClick={()=>demoLogin(user?.role==='admin'?'client':'admin')}><span><Wrench size={20}/>{user?.role==='admin'?'Zur Kundensicht':'Team-Demo öffnen'}</span><ChevronRight size={17}/></button>{!user&&<button onClick={()=>demoLogin()}><span><Folder size={20}/>Beispielprojekt ansehen</span><ChevronRight size={17}/></button>}</div><p className="settings-note">{OFFLINE?'Diese Demo speichert nur auf Ihrem Gerät. Anmeldung und Zahlungen sind simuliert. Bitte verwenden Sie Beispieldaten.':'Entwicklungsdemo. Bitte verwenden Sie nur Beispieldaten.'}</p></>}{user&&<button className="signout" onClick={logout}><LogOut size={17}/>Abmelden</button>}<p className="version-label">NORDE DEVELOPMENT · WEB DEMO 0.2</p></>}
- </main><nav className="bottom-nav" aria-label="Hauptmenü">{[['home',Home,'Start'],['projects',Folder,'Projekte'],['configure',Bath,'Beratung'],['calculator',Sparkles,'Preisrechner'],['game',Gamepad2,'Fliesenpause'],['settings',Settings,'Einstellungen']].map(([p,Icon,label])=><button key={p} aria-label={label} aria-current={page===p||(p==='projects'&&page==='admin')?'page':undefined} className={page===p||(p==='projects'&&page==='admin')?'active':''} onClick={()=>p==='configure'?request():navigate(p)}><Icon size={23} strokeWidth={page===p?1.8:1.5}/><span className="nav-indicator"/></button>)}</nav>{overlays}</div>;
+const money = (n) =>
+  new Intl.NumberFormat("de-DE", {
+    style: "currency",
+    currency: "EUR",
+    maximumFractionDigits: 2,
+  }).format(n);
+const date = (d) =>
+  d
+    ? new Date(d + "T12:00:00").toLocaleDateString("de-DE", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+    : "Noch in Abstimmung";
+const stages = [
+  "Anfrage",
+  "Planung",
+  "Demontage",
+  "Installation",
+  "Fliesen",
+  "Feinmontage",
+  "Abgeschlossen",
+];
+async function api(path, method = "GET", data) {
+  const r = await fetch("/api" + path, {
+    method,
+    headers: data ? { "Content-Type": "application/json" } : {},
+    body: data ? JSON.stringify(data) : undefined,
+  });
+  const b = await r.json();
+  if (!r.ok) throw Error(b.error || "Verbindung fehlgeschlagen.");
+  return b;
 }
-function Empty({title,text,action,label}){return <section className="empty"><div className="icon-tile"><Bath size={28}/></div><h2>{title}</h2><p>{text}</p><Button onClick={action}>{label}<ArrowRight size={17}/></Button></section>}
-function AuthModal({mode,setMode,onClose,onSuccess,demo,demoLogin,onPrivacy}) {const [busy,setBusy]=useState(false),[error,setError]=useState('');const register=mode==='register';async function submit(e){e.preventDefault();setBusy(true);setError('');const f=new FormData(e.target);try{const b=await api(register?'/register':'/login','POST',{name:f.get('name'),email:f.get('email'),password:f.get('password'),consent:f.get('consent')==='on'});await onSuccess(b.user);}catch(e){setError(e.message);}finally{setBusy(false);}}return <Modal title={register?'Willkommen bei Norde':'Schön, Sie wiederzusehen'} onClose={onClose}><p className="muted">{register?'Ihr neues Bad beginnt mit einem persönlichen Konto.':'Melden Sie sich in Ihrem persönlichen Badbegleiter an.'}</p><form onSubmit={submit} className="form-stack">{register&&<Field label="Ihr Name"><input name="name" required maxLength={100} autoComplete="name" placeholder="Vor- und Nachname"/></Field>}<Field label="E-Mail"><input name="email" type="email" required autoComplete="email" placeholder="name@beispiel.de" maxLength={254}/></Field><Field label="Passwort" hint={register?'Mindestens 10 Zeichen.':''}><input name="password" type="password" required minLength={register?10:1} maxLength={128} autoComplete={register?'new-password':'current-password'} placeholder="Ihr Passwort"/></Field>{register&&<label className="checkbox-label"><input name="consent" type="checkbox" required/><span>Ich habe die <button type="button" className="inline-button" onClick={onPrivacy}>Datenschutzhinweise</button> gelesen und stimme der Verarbeitung für mein Konto zu.</span></label>}{error&&<p className="error" role="alert">{error}</p>}<Button disabled={busy} variant="full">{busy?'Einen Moment …':register?'Konto erstellen':'Anmelden'}<ArrowRight size={17}/></Button></form><p className="auth-switch">{register?'Bereits ein Konto?':'Neu bei Norde?'} <button className="inline-button" onClick={()=>{setMode(register?'login':'register');setError('');}}>{register?'Anmelden':'Registrieren'}</button></p><p className="auth-note">{OFFLINE ? 'Nur Simulation: Verwenden Sie ein erfundenes Passwort. Ihre Angaben bleiben auf diesem Gerät.' : 'Apple- und Google-Anmeldung folgen in einer nächsten Version.'}</p>{demo&&<Button variant="outline full" onClick={()=>demoLogin()}>Ohne Registrierung als Demo ansehen</Button>}</Modal>}
-const blank={name:'',address:'',area:6,rooms:1,works:['Komplettsanierung'],equipment:'Bodengleiche Dusche',extras:[],tier:'Komplett',startDate:'',notes:'',photos:[],consent:false};
-async function readImages(files){if(files.length>6)throw Error('Bitte maximal 6 Fotos auswählen.');return Promise.all([...files].map(file=>new Promise((resolve,reject)=>{if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>10*1024*1024)return reject(Error('Bitte JPG, PNG oder WebP bis 10 MB pro Foto wählen.'));const img=new Image(),url=URL.createObjectURL(file);img.onload=()=>{const scale=Math.min(1,1400/Math.max(img.width,img.height));const canvas=document.createElement('canvas');canvas.width=img.width*scale;canvas.height=img.height*scale;canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);URL.revokeObjectURL(url);const result=canvas.toDataURL('image/jpeg',.8);result.length>2000000?reject(Error('Foto ist zu groß. Bitte ein kleineres Foto wählen.')):resolve(result);};img.onerror=()=>{URL.revokeObjectURL(url);reject(Error('Das Foto konnte nicht gelesen werden.'));};img.src=url;})));}
-function PhotoInput({photos,onChange,onError}){const [busy,setBusy]=useState(false);return <><label className="upload-area"><Camera size={26}/><b>{busy?'Fotos werden vorbereitet …':'Fotos hinzufügen'}</b><span>JPG, PNG oder WebP · maximal 6 Fotos</span><input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={busy} onChange={async e=>{setBusy(true);try{if(photos.length+e.target.files.length>6)throw Error('Maximal 6 Fotos möglich.');onChange([...photos,...await readImages(e.target.files)]);}catch(e){onError(e.message);}finally{setBusy(false);e.target.value='';}}}/></label>{photos.length>0&&<div className="photo-grid">{photos.map((p,i)=><div key={i}><img src={p} alt={'Badfoto '+(i+1)}/><button type="button" aria-label={'Foto '+(i+1)+' entfernen'} onClick={()=>onChange(photos.filter((_,j)=>i!==j))}><X size={15}/></button></div>)}</div>}</>}
-function Configurator({user,onSubmitted,onPrivacy,prefill}) {
- const [form,setForm]=useState(()=>{try{const saved=JSON.parse(sessionStorage.getItem('norde-draft-'+user.id));return {...blank,...(saved||{}),...(prefill||{}),photos:[],consent:false,name:user.name};}catch{return {...blank,...(prefill||{}),name:user.name};}}),[step,setStep]=useState(0),[error,setError]=useState(''),[busy,setBusy]=useState(false);
- const set=(k,v)=>setForm(f=>({...f,[k]:v}));
- useEffect(()=>{try{const {photos,consent,...safe}=form;sessionStorage.setItem('norde-draft-'+user.id,JSON.stringify(safe));}catch{}},[form,user.id]);
- const toggle=(key,value)=>set(key,form[key].includes(value)?form[key].filter(x=>x!==value):[...form[key],value]);
- async function next(e){e.preventDefault();setError('');if(step===1&&!form.works.length){setError('Bitte mindestens eine Leistung auswählen.');return;}if(step<3){setStep(step+1);window.scrollTo(0,0);return;}setBusy(true);try{const b=await api('/projects','POST',form);sessionStorage.removeItem('norde-draft-'+user.id);await onSubmitted(b.project);}catch(e){setError(e.message);}finally{setBusy(false);}}
- const titles=['Ihr Bad kennenlernen','Ihre Wünsche verstehen','Ausstattung & Zeitraum','Alles bereit?'];
- return <><div className="page-heading"><div className="eyebrow">IHRE PERSÖNLICHE BADBERATUNG</div><h1>Ein paar Schritte zu Ihrem Traumbad.</h1><p>Ganz ohne Fachwissen. Teilen Sie Ihre Wünsche — wir planen gemeinsam mit Ihnen.</p></div><div className="config-layout"><aside className="config-steps">{titles.map((title,i)=><div className={i===step?'current':i<step?'done':''} key={title}><span>{i<step?<Check size={17}/>:i+1}</span><div><small>SCHRITT {i+1}</small><b>{title}</b></div></div>)}<div className="config-reassurance"><ShieldCheck/><h4>In guten Händen.</h4><p>Ihre Anfrage ist unverbindlich. Das persönliche Angebot erstellen wir nach Prüfung Ihrer Angaben.</p></div></aside><form className="card config-form" onSubmit={next}><div className="form-step-heading"><span className="eyebrow">SCHRITT {step+1} VON 4</span><h2>{titles[step]}</h2><p>{['Damit wir wissen, wo Ihr neues Bad entsteht.','Was möchten Sie in Ihrem Bad verändern?','Wählen Sie, was sich für Sie richtig anfühlt.','Prüfen Sie Ihre Wünsche und senden Sie uns Ihre Anfrage.'][step]}</p></div>
- {step===0&&<><div className="form-grid"><Field label="Vor- und Nachname"><input required maxLength={100} value={form.name} onChange={e=>set('name',e.target.value)} autoComplete="name"/></Field><Field label="Adresse des Projekts"><input required maxLength={300} placeholder="Straße, Hausnummer, PLZ, Ort" value={form.address} onChange={e=>set('address',e.target.value)} autoComplete="street-address"/></Field><Field label="Fläche pro Badezimmer (m²)"><input required type="number" min="0.5" max="100" step="0.1" value={form.area} onChange={e=>set('area',e.target.value===''?'':Number(e.target.value))}/></Field><Field label="Anzahl der Badezimmer"><select value={form.rooms} onChange={e=>set('rooms',Number(e.target.value))}>{[1,2,3,4].map(n=><option key={n}>{n}</option>)}</select></Field></div><h4>Zeigen Sie uns Ihr aktuelles Bad <span className="optional">Optional</span></h4><PhotoInput photos={form.photos} onChange={p=>set('photos',p)} onError={setError}/></>}
- {step===1&&<><div className="choice-grid">{[['Komplettsanierung',Bath,'Alles neu, von der Leitung bis zur Fliese.'],['Dusche / Badewanne',Droplets,'Ein neuer Platz zum Entspannen.'],['Fliesen & Oberflächen',Grid2X2,'Ein frischer Look für Wände und Boden.'],['Sanitär & Anschlüsse',Wrench,'Waschtisch, WC und neue Leitungen.']].map(([name,Icon,text])=><button key={name} type="button" className={'choice '+(form.works.includes(name)?'selected':'')} onClick={()=>toggle('works',name)} aria-pressed={form.works.includes(name)}><Icon/><span><b>{name}</b><small>{text}</small></span><span className="choice-check">{form.works.includes(name)&&<Check size={13}/>}</span></button>)}</div><Field label="Wie möchten Sie duschen oder baden?"><select value={form.equipment} onChange={e=>set('equipment',e.target.value)}>{['Bodengleiche Dusche','Dusche mit Duschtasse','Badewanne','Dusche und Badewanne','Noch unentschieden'].map(t=><option key={t}>{t}</option>)}</select></Field><p className="field-note">Die technische Machbarkeit prüfen wir bei der Planung.</p><h4>Ein bisschen mehr Komfort <span className="optional">Optional</span></h4><div className="chips">{['Fußbodenheizung','LED-Spiegel','Handtuchheizkörper','Neue Decke & Spots','Waschmaschinenanschluss','Barrierearme Gestaltung'].map(t=><button type="button" key={t} className={form.extras.includes(t)?'selected':''} onClick={()=>toggle('extras',t)} aria-pressed={form.extras.includes(t)}>{form.extras.includes(t)?<Check size={14}/>:<Plus size={14}/>} {t}</button>)}</div></>}
- {step===2&&<><div className="tier-grid">{[['Essential','Gezielt erneuern','Individuelles Angebot','Für ausgewählte Arbeiten und einfache Ausstattung.'],['Komplett','Unser bewährtes Paket','12.949 €','Komplette Sanierung bis 6 m², inklusive Material und Ausstattung.'],['Signature','Mehr Raum für Wünsche','Individuelles Angebot','Besondere Materialien und zusätzliche Komfortwünsche.']].map(([tier,title,price,text])=><button type="button" key={tier} className={'tier '+(form.tier===tier?'selected':'')} onClick={()=>set('tier',tier)} aria-pressed={form.tier===tier}>{tier==='Komplett'&&<span className="tier-recommend">UNSER KOMPLETTPAKET</span>}<small>{tier}</small><h4>{title}</h4><b>{price}</b><p>{text}</p><span className="choice-check">{form.tier===tier&&<Check size={13}/>}</span></button>)}</div>{(form.area>6||form.rooms>1)&&<div className="notice"><CircleHelp size={20}/><p>Bei mehr als 6 m² pro Bad oder mehreren Bädern erstellen wir ein individuelles Angebot. Der Paketpreis wird nicht automatisch multipliziert.</p></div>}<Field label="Gewünschter Beginn" hint="Ihr Wunschtermin — die Verfügbarkeit bestätigen wir persönlich."><input required type="date" min={new Date().toLocaleDateString('sv-SE')} value={form.startDate} onChange={e=>set('startDate',e.target.value)}/></Field><Field label="Was sollten wir noch wissen?" hint="Zum Beispiel Stil, Zugänglichkeit, Etage oder besondere Wünsche."><textarea maxLength={3000} rows={3} placeholder="Erzählen Sie uns von Ihren Ideen …" value={form.notes} onChange={e=>set('notes',e.target.value)}/></Field></>}
- {step===3&&<><div className="summary-grid">{[['Projekt',form.name],['Adresse',form.address],['Badgröße',`${form.rooms} × ${form.area} m²`],['Leistungen',form.works.join(', ')],['Dusche / Badewanne',form.equipment],['Extras',form.extras.join(', ')||'Keine ausgewählt'],['Ausstattung',form.tier],['Wunschtermin',date(form.startDate)],['Fotos',`${form.photos.length} Fotos`]].map(([k,v])=><div key={k}><small>{k}</small><b>{v}</b></div>)}</div>{form.notes&&<p className="notes">{form.notes}</p>}<div className="notice"><ShieldCheck size={22}/><p>Dies ist eine Beratungsanfrage, keine Bestellung. Sie erhalten Ihr individuelles Angebot nach persönlicher Abstimmung.</p></div><label className="checkbox-label"><input required type="checkbox" checked={form.consent} onChange={e=>set('consent',e.target.checked)}/><span>Ich stimme der Verarbeitung meiner Angaben und Fotos zur Bearbeitung dieser Anfrage zu. <button className="inline-button" type="button" onClick={onPrivacy}>Datenschutzhinweise lesen</button></span></label></>}
- {error&&<div className="error" role="alert">{error}</div>}<div className="form-navigation">{step>0?<Button type="button" variant="outline" disabled={busy} onClick={()=>{setStep(step-1);setError('');}}><ArrowLeft size={17}/>Zurück</Button>:<span className="muted">Unverbindlich & persönlich</span>}<Button disabled={busy}>{busy?'Wird gesendet …':step===3?'Anfrage senden':'Weiter'}<ArrowRight size={17}/></Button></div></form></div></>;
+function Brand() {
+  return (
+    <div className="brand">
+      <svg viewBox="0 0 40 42" aria-hidden="true">
+        <path
+          d="M3 39V14L13 3v36zM17 39V7l9 13v19zM30 39V24l8 12v3z"
+          fill="currentColor"
+        />
+      </svg>
+      <span>
+        NORDE<small>DEVELOPMENT</small>
+      </span>
+    </div>
+  );
 }
-function ProjectDetail({project:p,admin,onBack,onChanged,notify}) {
- const [tab,setTab]=useState('updates'),[modal,setModal]=useState(null),[error,setError]=useState(''),[busy,setBusy]=useState(false),[photos,setPhotos]=useState([]);
- function open(m){setModal(m);setError('');setPhotos([]);}
- async function submit(e){e.preventDefault();setBusy(true);setError('');const f=new FormData(e.target);try{let data,path='/projects/'+p.id,method='POST';if(modal==='status'){method='PATCH';data={status:f.get('status'),progress:Number(f.get('progress')),startDate:f.get('startDate'),endDate:f.get('endDate')};}else if(modal==='update'){path+='/updates';data={title:f.get('title'),text:f.get('text'),photos};}else if(modal==='invoice'){path+='/invoices';const file=f.get('file');if(file.size>8*1024*1024)throw Error('PDF maximal 8 MB.');const pdf=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=()=>reject(Error('PDF konnte nicht gelesen werden.'));r.readAsDataURL(file);});data={title:f.get('title'),number:f.get('number'),amount:Number(f.get('amount')),due:f.get('due'),file:pdf};}else{path+='/review';data={rating:Number(f.get('rating')),text:f.get('text')};}await api(path,method,data);await onChanged();setModal(null);}catch(e){setError(e.message);}finally{setBusy(false);}}
- const stage=stages.indexOf(p.status);
- return <><button className="text-button back-button" onClick={onBack}><ArrowLeft size={17}/>Zur Projektübersicht</button><div className="page-heading project-title"><div><div className="eyebrow">IHR BADPROJEKT</div><h1>{p.status==='Anfrage'?'Vielen Dank für Ihre Anfrage.':'Schritt für Schritt zu Ihrem neuen Bad.'}</h1><p>{p.address} · {p.area} m² · {p.tier}</p></div><Badge variant="green">{p.status}</Badge></div><div className="project-detail-grid"><section className="card"><div className="section-heading"><h3>{p.status==='Anfrage'?'Ihre Beratung ist vorgemerkt':'Ihr Projektfortschritt'}</h3><b className="progress-value">{p.progress}%</b></div><div className="progress-track large"><span style={{width:p.progress+'%'}}/></div><div className="stage-list">{stages.map((s,i)=><div key={s} className={i<stage?'done':i===stage?'current':''}><span>{i<stage?<Check size={13}/>:i+1}</span><small>{s}</small></div>)}</div>{p.status==='Anfrage'&&<p className="field-note">Das Norde Team prüft Ihre Wünsche und stimmt die nächsten Schritte mit Ihnen ab.</p>}{admin&&<Button variant="outline" onClick={()=>open('status')}><Settings size={16}/>Status & Termine bearbeiten</Button>}</section><section className="card dates-card"><div><Calendar size={20}/><span><small>{p.status==='Anfrage'?'Gewünschter Beginn':'Geplanter Beginn'}</small><b>{date(p.startDate)}</b></span></div><div><Clock size={20}/><span><small>Voraussichtliche Fertigstellung</small><b>{date(p.endDate)}</b></span></div><p>Termine können sich im Projektverlauf ändern. Wir halten Sie auf dem Laufenden.</p></section></div>
- <div className="tabs">{[['updates','Fortschritt & Fotos'],['invoices','Angebote & Rechnungen'],['request','Meine Anfrage']].map(([k,title])=><button className={tab===k?'active':''} onClick={()=>setTab(k)} key={k}>{title}{k==='invoices'&&<span>{p.invoices.length}</span>}</button>)}</div>
- {tab==='updates'&&<><div className="section-heading"><h2>Neues von Ihrem Bad</h2>{admin&&<Button onClick={()=>open('update')}><Plus size={17}/>Update hinzufügen</Button>}</div>{p.updates.length?<div className="timeline">{[...p.updates].reverse().map(u=><article className="card timeline-item" key={u.id}><span className="timeline-dot"/><span className="eyebrow">{new Date(u.date).toLocaleDateString('de-DE',{day:'numeric',month:'long',year:'numeric'})} · NORDE TEAM</span><h3>{u.title}</h3><p>{u.text}</p>{u.photos.length>0&&<div className="update-photos">{u.photos.map((photo,i)=><button key={i} onClick={()=>open({photo})} aria-label={'Projektfoto '+(i+1)+' vergrößern'}><img src={photo} alt={'Projektfortschritt: '+u.title}/></button>)}</div>}</article>)}</div>:<div className="card empty-small"><Camera/><h3>Hier entsteht Ihre Projektgeschichte.</h3><p>Sobald wir starten, finden Sie hier Fotos und Neuigkeiten vom Norde Team.</p></div>}{p.status==='Abgeschlossen'&&<section className="card review-card"><Star/><h3>Wie gefällt Ihnen Ihr neues Bad?</h3>{p.review?<><p>{'★'.repeat(p.review.rating)}</p><p>{p.review.text}</p></>:!admin?<Button onClick={()=>open('review')}>Bewertung hinterlassen</Button>:<p>Der Kunde kann jetzt eine Bewertung hinterlassen.</p>}</section>}</>}
- {tab==='invoices'&&<><div className="section-heading"><h2>Ihre Dokumente</h2>{admin&&<Button onClick={()=>open('invoice')}><Upload size={17}/>Rechnung hochladen</Button>}</div><div className="notice"><FileText size={22}/><p>Rechnungen werden passend zum vereinbarten Zahlungsplan bereitgestellt. Online-Zahlungen sind in dieser Version noch nicht angeschlossen.</p></div>{p.invoices.length?p.invoices.map(i=><section className="card invoice" key={i.id}><span className="icon-tile"><FileText/></span><div><Badge>{i.number}</Badge><h3>{i.title}</h3><p>Fällig am {date(i.due)} · {i.status==='offen'?'Offen':'Bezahlt'}</p></div><strong>{money(i.amount)}</strong><div className="invoice-actions">{i.file?<a className="button outline" href={`/api/projects/${p.id}/document?invoice=${i.id}`}><Download size={16}/>PDF</a>:<span className="muted">Beispielrechnung ohne PDF</span>}<Button variant="outline" onClick={()=>notify('Apple Pay und Kartenzahlungen sind noch nicht angeschlossen. Es wurde keine Zahlung ausgelöst.')}>Zahlungsoptionen</Button></div></section>):<div className="card empty-small"><FileText/><h3>Noch keine Dokumente.</h3><p>Das Norde Team stellt Ihre Rechnungen hier bereit.</p></div>}</>}
- {tab==='request'&&<section className="card"><h3>Ihre Beratungsanfrage</h3><div className="summary-grid">{[['Name',p.name],['Adresse',p.address],['Badezimmer',`${p.rooms} × ${p.area} m²`],['Leistungen',p.works.join(', ')],['Ausstattung',p.tier],['Dusche / Badewanne',p.equipment],['Extras',p.extras.join(', ')||'Keine'],['Wunschtermin',date(p.startDate)]].map(([k,v])=><div key={k}><small>{k}</small><b>{v}</b></div>)}</div>{p.notes&&<p className="notes">{p.notes}</p>}{p.photos.length>0&&<div className="update-photos">{p.photos.map((photo,i)=><button key={i} onClick={()=>open({photo})} aria-label={'Badfoto '+(i+1)+' vergrößern'}><img src={photo} alt={'Foto der Anfrage '+(i+1)}/></button>)}</div>}</section>}
- {modal&&<Modal title={typeof modal==='object'?'Projektfoto':({status:'Projektstand bearbeiten',update:'Neues Projektupdate',invoice:'Rechnung bereitstellen',review:'Ihre Bewertung'})[modal]} onClose={()=>!busy&&setModal(null)}>{typeof modal==='object'?<img className="full-photo" src={modal.photo} alt="Vergrößertes Projektfoto"/>:<form className="form-stack" onSubmit={submit}>{modal==='status'&&<><Field label="Projektphase"><select name="status" defaultValue={p.status}>{stages.map(s=><option key={s}>{s}</option>)}</select></Field><Field label="Fortschritt (%)"><input name="progress" required type="number" min="0" max="100" defaultValue={p.progress}/></Field><Field label="Geplanter Beginn"><input name="startDate" type="date" defaultValue={p.startDate}/></Field><Field label="Voraussichtlicher Abschluss"><input name="endDate" type="date" defaultValue={p.endDate||''}/></Field></>}{modal==='update'&&<><Field label="Titel"><input name="title" required maxLength={150} placeholder="Zum Beispiel: Die Fliesen sind verlegt"/></Field><Field label="Nachricht an den Kunden"><textarea name="text" rows={4} required maxLength={3000}/></Field><PhotoInput photos={photos} onChange={setPhotos} onError={setError}/></>}{modal==='invoice'&&<><Field label="Rechnungsnummer"><input name="number" required maxLength={80}/></Field><Field label="Bezeichnung"><input name="title" required maxLength={150} placeholder="1. Abschlagsrechnung"/></Field><div className="form-grid"><Field label="Betrag (€)"><input name="amount" type="number" required min="0.01" max="1000000" step="0.01"/></Field><Field label="Fällig am"><input name="due" type="date" required/></Field></div><Field label="Rechnung als PDF (max. 8 MB)"><input name="file" type="file" accept="application/pdf" required/></Field><p className="field-note">Laden Sie nur die Rechnung dieses Kunden hoch. Das Dokument ist für den Kunden und das Norde Team sichtbar.</p></>}{modal==='review'&&<><Field label="Ihre Bewertung"><select name="rating">{[5,4,3,2,1].map(n=><option value={n} key={n}>{'★'.repeat(n)} · {n} von 5</option>)}</select></Field><Field label="Ihre Erfahrung"><textarea name="text" required maxLength={2000} rows={4}/></Field><p className="field-note">Ihre Bewertung ist zunächst nur für Sie und das Norde Team sichtbar.</p></>}{error&&<p className="error" role="alert">{error}</p>}<Button disabled={busy} variant="full">{busy?'Wird gespeichert …':'Speichern'}<Check size={17}/></Button></form>}</Modal>}
- </>;
+function Button({ children, variant = "", ...props }) {
+  return (
+    <button className={"button " + variant} {...props}>
+      {children}
+    </button>
+  );
 }
-function TileGame(){
- const size=16,initial=[[5,8],[4,8],[3,8]];
- const [snake,setSnake]=useState(initial),[tile,setTile]=useState([11,8]),[running,setRunning]=useState(false),[over,setOver]=useState(false),[score,setScore]=useState(0),[high,setHigh]=useState(()=>{try{return Number(localStorage.getItem('norde-tiles-high'))||0;}catch{return 0;}});
- const direction=useRef([1,0]),queued=useRef(false),touch=useRef(null),board=useRef();
- function turn(x,y){if(queued.current||over||!running)return;const [dx,dy]=direction.current;if(dx===-x&&dy===-y)return;direction.current=[x,y];queued.current=true;}
- function reset(){direction.current=[1,0];queued.current=false;setSnake(initial);setTile([11,8]);setScore(0);setOver(false);setRunning(true);board.current?.focus();}
- useEffect(()=>{function key(e){const dirs={ArrowUp:[0,-1],ArrowDown:[0,1],ArrowLeft:[-1,0],ArrowRight:[1,0],w:[0,-1],s:[0,1],a:[-1,0],d:[1,0]};if(dirs[e.key]){e.preventDefault();turn(...dirs[e.key]);}else if(e.code==='Space'){e.preventDefault();if(over)reset();else setRunning(v=>!v);}}const el=board.current;el.addEventListener('keydown',key);return()=>el.removeEventListener('keydown',key);},[running,over]);
- useEffect(()=>{if(!running)return;const timer=setInterval(()=>{setSnake(current=>{const [dx,dy]=direction.current;queued.current=false;const head=[current[0][0]+dx,current[0][1]+dy];const eating=head[0]===tile[0]&&head[1]===tile[1];const body=eating?current:current.slice(0,-1);if(head.some(v=>v<0||v>=size)||body.some(([x,y])=>x===head[0]&&y===head[1])){setRunning(false);setOver(true);return current;}const next=[head,...current];if(!eating)next.pop();else{const points=score+10;setScore(points);if(points>high){setHigh(points);try{localStorage.setItem('norde-tiles-high',String(points));}catch{}}const available=[];for(let x=0;x<size;x++)for(let y=0;y<size;y++)if(!next.some(([nx,ny])=>nx===x&&ny===y))available.push([x,y]);if(available.length)setTile(available[Math.floor(Math.random()*available.length)]);else{setRunning(false);setOver(true);}}return next;});},Math.max(90,220-score));return()=>clearInterval(timer);},[running,tile,score,high]);
- return <><div className="page-heading"><div className="eyebrow">EINE KLEINE AUSZEIT</div><h1>Fliesenpause.</h1><p>Ihr Bad wird schön. Ihre Pause auch. Sammeln Sie Fliesen und legen Sie die längste Spur!</p></div><div className="game-layout"><section className="card game-card"><div className="game-score"><span><small>IHRE PUNKTE</small><b>{String(score).padStart(3,'0')}</b></span><div className="badge green"><Sparkles size={14}/> FLIESENPAUSE</div><span><small>REKORD</small><b>{String(high).padStart(3,'0')}</b></span></div><div className="game-board" ref={board} tabIndex={0} role="application" aria-label="Fliesenspiel. Mit Pfeiltasten oder Wischgesten steuern, Leertaste pausiert." onTouchStart={e=>touch.current=[e.touches[0].clientX,e.touches[0].clientY]} onTouchEnd={e=>{if(!touch.current)return;const dx=e.changedTouches[0].clientX-touch.current[0],dy=e.changedTouches[0].clientY-touch.current[1];if(Math.max(Math.abs(dx),Math.abs(dy))>15)turn(...(Math.abs(dx)>Math.abs(dy)?[Math.sign(dx),0]:[0,Math.sign(dy)]));touch.current=null;}}><div className="board-grid">{Array.from({length:size*size},(_,i)=>{const x=i%size,y=Math.floor(i/size),index=snake.findIndex(([sx,sy])=>sx===x&&sy===y);return <span className={index===0?'plumber':index>0?'laid-tile':tile[0]===x&&tile[1]===y?'collect-tile':''} key={i}>{index===0?'🔧':tile[0]===x&&tile[1]===y?'✦':''}</span>;})}</div>{!running&&<div className="game-overlay"><div className="game-overlay-inner"><Gamepad2 size={38}/><h2>{over?'Gut verlegt!':score?'Kurze Pause?':'Bereit zum Fliesenlegen?'}</h2><p>{over?`${score} Punkte — eine Fliese geht noch!`:'Sammeln Sie die goldenen Fliesen. Bleiben Sie innerhalb des Badezimmers.'}</p><Button variant="light" onClick={()=>{if(over||!score)reset();else{setRunning(true);board.current.focus();}}}><Play size={17}/>{over?'Noch eine Runde':score?'Weiterspielen':'Spiel starten'}</Button></div></div>}</div><div className="game-controls"><Button variant="outline" onClick={()=>{if(over)reset();else{setRunning(!running);board.current.focus();}}}>{running?<Pause size={16}/>:<Play size={16}/>} {running?'Pause':'Start'}</Button><span className="muted">Pfeiltasten · WASD · Wischen</span><button className="icon-button" onClick={reset} aria-label="Spiel neu starten"><RotateCcw size={20}/></button></div><div className="direction-controls"><button aria-label="Nach oben" onClick={()=>turn(0,-1)}>↑</button><div><button aria-label="Nach links" onClick={()=>turn(-1,0)}>←</button><button aria-label="Nach unten" onClick={()=>turn(0,1)}>↓</button><button aria-label="Nach rechts" onClick={()=>turn(1,0)}>→</button></div></div></section><aside className="game-aside"><div className="tile-mini"><span/><span/><span/><span/><span className="gold"/><span/><span/><span/><span/></div><h2>Große Pläne.{' '}<br/>Kleine Pause.</h2><p>Unser Handwerker sammelt goldene Fliesen. Mit jeder Fliese wächst die verlegte Spur — und Ihr Punktestand.</p><ul className="included-list"><li><Check size={16}/>Goldene Fliese sammeln: +10 Punkte</li><li><Check size={16}/>Wände und eigene Spur vermeiden</li><li><Check size={16}/>Ihr Rekord bleibt auf diesem Gerät</li></ul><p className="field-note">Nur zum Spaß. Keine Käufe, keine Werbung und keine Auswirkung auf Ihren Projektpreis.</p></aside></div></>;
+function Badge({ children, variant = "" }) {
+  return <span className={"badge " + variant}>{children}</span>;
 }
-createRoot(document.getElementById('root')).render(<App/>);
+function Field({ label, children, hint }) {
+  const id = React.useId();
+  return (
+    <label className="field">
+      <span id={id}>{label}</span>
+      {React.cloneElement(children, {
+        "aria-labelledby": id,
+        "aria-describedby": hint ? id + "-hint" : undefined,
+      })}
+      {hint && <small id={id + "-hint"}>{hint}</small>}
+    </label>
+  );
+}
+function Modal({ title, children, onClose }) {
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  const ref = useRef();
+  useEffect(() => {
+    const prev = document.activeElement;
+    const el = ref.current;
+    el.focus();
+    function key(e) {
+      if (e.key === "Escape") closeRef.current();
+      if (e.key === "Tab") {
+        const all = [
+          ...el.querySelectorAll(
+            'button, a[href], input, select, textarea, [tabindex="0"]',
+          ),
+        ].filter((x) => !x.disabled);
+        const first = all[0],
+          last = all.at(-1);
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last?.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first?.focus();
+        }
+      }
+    }
+    el.addEventListener("keydown", key);
+    return () => {
+      el.removeEventListener("keydown", key);
+      prev?.focus();
+    };
+  }, []);
+  return (
+    <div
+      className="overlay"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <section
+        ref={ref}
+        className="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        tabIndex={-1}
+      >
+        <div className="modal-head">
+          <h2>{title}</h2>
+          <button
+            className="icon-button"
+            onClick={onClose}
+            aria-label="Schließen"
+          >
+            <X />
+          </button>
+        </div>
+        {children}
+      </section>
+    </div>
+  );
+}
+const privacy = (
+  <>
+    <p>
+      {OFFLINE
+        ? "Diese Offline-Demo speichert Ihre Beispieldaten ausschließlich auf diesem Gerät. Die Anmeldung wird simuliert; Passwörter werden nicht gespeichert. Anfragen, Fotos und Dokumente werden nicht an Norde gesendet."
+        : "Dieser Entwicklungsprototyp speichert Konto- und Projektdaten auf dem lokalen Norde-Server. Fotos, Adresse und Kontaktdaten werden für die Bearbeitung Ihrer Beratungsanfrage verwendet und sind nur für Ihr Konto und das Norde Team sichtbar."}
+    </p>
+    <p>
+      Es werden keine Daten an Zahlungsanbieter oder Werbedienste gesendet.
+      Verwenden Sie zum Testen bitte Beispieldaten. Die endgültige
+      Datenschutzerklärung mit Verantwortlichem, Rechtsgrundlagen,
+      Aufbewahrungsfristen und Betroffenenrechten wird vor dem öffentlichen
+      Start ergänzt.
+    </p>
+  </>
+);
+function App() {
+  const [calculatorPrefill, setCalculatorPrefill] = useState(null);
+  const [bathConfiguration, setBathConfiguration] = useState(() => {
+    try {
+      const raw = JSON.parse(
+        localStorage.getItem("norde-bath-config-v1") || "null",
+      );
+      if (!raw) return { ...DEFAULT_CONFIGURATION, extras: [] };
+      const c = { ...DEFAULT_CONFIGURATION, ...raw };
+      for (const [key, options] of [
+        ["equipment", PRICE_CATALOGUE.equipment],
+        ["material", MATERIALS],
+        ["toilet", TOILETS],
+        ["vanity", VANITIES],
+        ["tileFormat", TILE_FORMATS],
+        ["finish", FINISHES],
+      ])
+        if (!options.some((x) => x.id === c[key]))
+          c[key] = DEFAULT_CONFIGURATION[key];
+      c.extras = Array.isArray(c.extras)
+        ? [
+            ...new Set(
+              c.extras.filter((x) =>
+                PRICE_CATALOGUE.extras.some((e) => e.id === x),
+              ),
+            ),
+          ]
+        : [];
+      if (
+        c.area === null ||
+        typeof c.area === "object" ||
+        !Number.isFinite(Number(c.area))
+      )
+        c.area = DEFAULT_CONFIGURATION.area;
+      return c;
+    } catch {
+      return { ...DEFAULT_CONFIGURATION, extras: [] };
+    }
+  });
+  const [calculatorStep, setCalculatorStep] = useState(0),
+    [inquiryDraft, setInquiryDraft] = useState({
+      ...EMPTY_INQUIRY,
+      photos: [],
+    }),
+    [inquirySent, setInquirySent] = useState(null);
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        "norde-bath-config-v1",
+        JSON.stringify(bathConfiguration),
+      );
+    } catch {}
+  }, [bathConfiguration]);
+  const [user, setUser] = useState(null),
+    [loading, setLoading] = useState(true),
+    [demo, setDemo] = useState(false),
+    [projects, setProjects] = useState([]),
+    [page, setPage] = useState("home"),
+    [selected, setSelected] = useState(null),
+    [auth, setAuth] = useState(null),
+    [info, setInfo] = useState(null),
+    [toast, setToast] = useState(""),
+    [error, setError] = useState(""),
+    [onboarding, setOnboarding] = useState(() => {
+      try {
+        return localStorage.getItem("norde-intro-v2") === "done" ? null : 0;
+      } catch {
+        return 0;
+      }
+    });
+  const authNext = useRef("home");
+  useEffect(() => {
+    if (onboarding !== null) return;
+    const h = document.querySelector(".app-content h1");
+    if (h) {
+      h.setAttribute("tabindex", "-1");
+      h.focus({ preventScroll: true });
+    }
+  }, [page, onboarding]);
+  const notify = (msg) => setToast(msg);
+  async function refresh() {
+    const b = await api("/projects");
+    setProjects(b.projects);
+  }
+  useEffect(() => {
+    (async () => {
+      try {
+        const h = await api("/health");
+        setDemo(h.demo);
+        try {
+          const b = await api("/me");
+          setUser(b.user);
+          await refresh();
+        } catch (e) {
+          if (e.message !== "Bitte zuerst anmelden.") setError(e.message);
+        }
+      } catch {
+        setError("Die Verbindung ist gerade nicht verfügbar.");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+  useEffect(() => {
+    if (toast) {
+      const t = setTimeout(() => setToast(""), 4500);
+      return () => clearTimeout(t);
+    }
+  }, [toast]);
+  useEffect(() => {
+    if (!user) return;
+    const t = setInterval(() => refresh().catch(() => {}), 15000);
+    return () => clearInterval(t);
+  }, [user]);
+  function finishIntro() {
+    setOnboarding(null);
+    try {
+      localStorage.setItem("norde-intro-v2", "done");
+    } catch {}
+  }
+  function navigate(p) {
+    setPage(p);
+    setSelected(null);
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }
+  async function signedIn(u) {
+    setUser(u);
+    setSelected(null);
+    setAuth(null);
+    await refresh();
+    const next = authNext.current;
+    authNext.current = "home";
+    finishIntro();
+    navigate(next);
+  }
+  async function demoLogin(role = "client") {
+    try {
+      const b = await api("/demo", "POST", { role });
+      setUser(b.user);
+      await refresh();
+      setSelected(null);
+      navigate(role === "admin" ? "admin" : "home");
+    } catch (e) {
+      notify(e.message);
+    }
+  }
+  function startCalculator() {
+    finishIntro();
+    navigate("calculator");
+  }
+  async function legacyRequest(prefill = null) {
+    if (prefill && typeof prefill === "object" && !prefill.nativeEvent)
+      setCalculatorPrefill(prefill);
+    else setCalculatorPrefill(null);
+    setError("");
+    if (!user && OFFLINE) {
+      try {
+        const b = await api("/demo", "POST", { role: "client" });
+        setUser(b.user);
+        await refresh();
+        finishIntro();
+        navigate("configure");
+      } catch (e) {
+        setError(e.message);
+      }
+      return;
+    }
+    if (!user) {
+      authNext.current = "configure";
+      setAuth("register");
+      return;
+    }
+    finishIntro();
+    navigate("configure");
+  }
+  async function logout() {
+    try {
+      await api("/logout", "POST", {});
+      setUser(null);
+      setProjects([]);
+      navigate("home");
+      notify("Abgemeldet.");
+    } catch (e) {
+      notify(e.message);
+    }
+  }
+  function openProject(p) {
+    setSelected(p.id);
+    setPage(user?.role === "admin" ? "admin" : "projects");
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }
+  const active = projects[0],
+    project = projects.find((p) => p.id === selected);
+  const title = {
+    home: "Mein Norde",
+    configure: "Beratung",
+    calculator: "Preisrechner",
+    lead: "Anfrage",
+    inbox: "Anfragen",
+    projects: "Projekte",
+    game: "Fliesenpause",
+    settings: "Einstellungen",
+    admin: "Norde Team",
+  }[page];
+  if (loading)
+    return (
+      <div className="loading">
+        <Brand />
+        <div className="loading-sketch" aria-hidden="true">
+          <span />
+          <span />
+          <span />
+        </div>
+        <p role="status">Ihre Ansicht wird vorbereitet.</p>
+      </div>
+    );
+  const overlays = (
+    <>
+      {auth && (
+        <AuthModal
+          mode={auth}
+          setMode={setAuth}
+          onClose={() => {
+            setAuth(null);
+            authNext.current = "home";
+          }}
+          onSuccess={signedIn}
+          demo={demo}
+          demoLogin={async () => {
+            await demoLogin();
+            setAuth(null);
+            finishIntro();
+            if (authNext.current === "configure") {
+              finishIntro();
+              navigate("configure");
+              authNext.current = "home";
+            }
+          }}
+          onPrivacy={() => setInfo({ title: "Datenschutz", content: privacy })}
+        />
+      )}{" "}
+      {info && (
+        <Modal title={info.title} onClose={() => setInfo(null)}>
+          {info.content}
+        </Modal>
+      )}
+      {toast && (
+        <div className="toast" role="status">
+          <CheckCircle2 size={19} />
+          {toast}
+          <button onClick={() => setToast("")} aria-label="Meldung schließen">
+            <X size={16} />
+          </button>
+        </div>
+      )}
+    </>
+  );
+  if (onboarding !== null)
+    return (
+      <div className="onboarding" key={onboarding}>
+        <header className="intro-header">
+          <Brand />
+          {onboarding === 1 && (
+            <button
+              className="icon-button"
+              aria-label="Zurück zum Willkommen"
+              onClick={() => setOnboarding(0)}
+            >
+              <ArrowLeft size={22} />
+            </button>
+          )}
+        </header>
+        <div className={"intro-content slide-" + onboarding}>
+          <div className="intro-photo">
+            <img
+              src="/bathroom.svg"
+              alt="Originalillustration eines Badezimmers als Stilidee"
+            />
+            <span>Illustration · gemeinsam planen wir Ihr echtes Bad</span>
+          </div>
+          <div className="intro-copy">
+            <span className="eyebrow">
+              {onboarding === 0
+                ? "WILLKOMMEN BEI NORDE"
+                : "GANZ IN IHREM TEMPO"}
+            </span>
+            <h1>
+              {onboarding === 0 ? (
+                <>
+                  Ein gutes Gefühl.
+                  <br />
+                  Von Anfang an.
+                </>
+              ) : (
+                <>
+                  Ihr Bad.
+                  <br />
+                  Ihre Wünsche.
+                </>
+              )}
+            </h1>
+            <p>
+              {onboarding === 0
+                ? "Schön, dass Sie da sind. Wir begleiten Sie zu Ihrem neuen Bad."
+                : "Ein paar einfache Fragen. Ihre Ideen. Und der erste Schritt zu einem Bad, das zu Ihnen passt."}
+            </p>
+          </div>
+        </div>
+        <div className="intro-actions">
+          {error && (
+            <div className="error" role="alert">
+              {error}
+            </div>
+          )}
+          <Button variant="full" onClick={startCalculator}>
+            Mein Bad konfigurieren
+            <ArrowRight size={19} />
+          </Button>
+          {onboarding === 0 ? (
+            <button
+              className="quiet-button"
+              onClick={() => {
+                authNext.current = "home";
+                setAuth("login");
+              }}
+            >
+              Ich habe bereits ein Konto
+            </button>
+          ) : (
+            <button
+              className="quiet-button"
+              onClick={() => {
+                finishIntro();
+                navigate("home");
+              }}
+            >
+              Später, erst einmal umsehen
+            </button>
+          )}
+          <button
+            className="intro-skip"
+            onClick={() => {
+              finishIntro();
+              navigate("home");
+            }}
+          >
+            Erst einmal umsehen
+          </button>
+          <span className="demo-caption">
+            {OFFLINE
+              ? "Demo · nur Beispieldaten"
+              : "Ihr persönlicher Badbegleiter"}
+          </span>
+        </div>
+        {overlays}
+      </div>
+    );
+  return (
+    <div className="app-shell">
+      <header className="app-header">
+        <span className="header-wordmark">
+          norde<span>•</span>
+        </span>
+        <span className="header-section">{title}</span>
+        <span className="header-demo">Demo</span>
+        {page !== "settings" ? (
+          <button
+            className="header-avatar"
+            onClick={() => navigate("settings")}
+            aria-label="Einstellungen öffnen"
+          >
+            {user?.name[0] || <User size={18} />}
+          </button>
+        ) : (
+          <span className="header-spacer" />
+        )}
+      </header>
+      <main key={page} className={"app-content page-" + page}>
+        {error && (
+          <div className="error" role="alert">
+            {error}
+          </div>
+        )}
+        {page === "home" && (
+          <>
+            <div className="home-greeting">
+              <span className="eyebrow">ALLES IN IHREM TEMPO</span>
+              <h1>
+                {user
+                  ? `Hallo, ${user.name.split(" ")[0]}.`
+                  : "Schön, dass Sie da sind."}
+              </h1>
+              <p>
+                {active
+                  ? "Ein Blick auf Ihr Badprojekt."
+                  : "Ihr neues Bad beginnt mit einer guten Idee."}
+              </p>
+            </div>
+            {active ? (
+              <button
+                className="focus-project"
+                onClick={() => openProject(active)}
+              >
+                <div className="focus-top">
+                  <span className="soft-icon">
+                    <Bath size={25} strokeWidth={1.5} />
+                  </span>
+                  <Badge variant="green">{active.status}</Badge>
+                </div>
+                <h2>Ihr Badprojekt</h2>
+                <p>{active.address}</p>
+                <div className="focus-progress">
+                  <strong>
+                    {active.progress}
+                    <small>%</small>
+                  </strong>
+                  <span>
+                    Schritt für Schritt
+                    <br />
+                    zu Ihrem neuen Bad.
+                  </span>
+                </div>
+                <div className="progress-track">
+                  <span style={{ width: active.progress + "%" }} />
+                </div>
+                <div className="focus-bottom">
+                  <span>Projekt ansehen</span>
+                  <ArrowRight size={20} />
+                </div>
+              </button>
+            ) : (
+              <section className="home-plan">
+                <div className="home-room">
+                  <img
+                    src="/bathroom.svg"
+                    alt="Originalillustration eines modernen Badezimmers"
+                  />
+                  <span>Stilidee · Illustration</span>
+                </div>
+                <h2>Platz für Ihr neues Bad.</h2>
+                <p>
+                  Teilen Sie Ihre Wünsche.
+                  <br />
+                  Den Rest planen wir gemeinsam.
+                </p>
+                <Button variant="full" onClick={startCalculator}>
+                  Mein Bad konfigurieren
+                  <ArrowRight size={18} />
+                </Button>
+                <small>Unverbindlich. Persönlich. In wenigen Schritten.</small>
+              </section>
+            )}
+            <div className="home-secondary">
+              {inquirySent && (
+                <button onClick={() => navigate("lead")}>
+                  <span>
+                    <CheckCircle2 size={21} />
+                    <b>Ihre Demo-Anfrage ansehen</b>
+                  </span>
+                  <ChevronRight size={17} />
+                </button>
+              )}
+              <button onClick={() => navigate("calculator")}>
+                <span>
+                  <Sparkles size={21} />
+                  <b>Bad konfigurieren</b>
+                </span>
+                <ChevronRight size={17} />
+              </button>
+            </div>
+            <p className="home-signoff">Ihr Zuhause. Unser Handwerk.</p>
+          </>
+        )}
+        {page === "calculator" && (
+          <PriceCalculator
+            configuration={bathConfiguration}
+            onChange={setBathConfiguration}
+            step={calculatorStep}
+            onStepChange={setCalculatorStep}
+            onRequest={(data) => {
+              setCalculatorPrefill(data);
+              setInquirySent(null);
+              navigate("lead");
+            }}
+          />
+        )}
+        {page === "lead" && (
+          <LeadForm
+            configuration={calculatorPrefill || bathConfiguration}
+            data={inquiryDraft}
+            onChange={setInquiryDraft}
+            sent={inquirySent}
+            onSent={setInquirySent}
+            onBack={() => navigate("calculator")}
+            onHome={() => navigate("home")}
+          />
+        )}
+        {page === "inbox" && user?.role === "admin" && <LeadInbox />}
+        {page === "configure" && (
+          <>
+            <button
+              className="text-button app-back"
+              onClick={() => navigate("home")}
+            >
+              <X size={18} />
+              Beratung verlassen
+            </button>
+            {user ? (
+              <Configurator
+                user={user}
+                prefill={calculatorPrefill}
+                onSubmitted={async () => {
+                  await refresh();
+                  finishIntro();
+                  navigate("home");
+                  setInfo({
+                    title: "Vielen Dank für Ihre Anfrage.",
+                    content: (
+                      <div className="submission-success">
+                        <span className="soft-icon">
+                          <Check size={34} />
+                        </span>
+                        <p>
+                          {OFFLINE
+                            ? "Ihre Demo-Anfrage ist auf diesem Gerät gespeichert."
+                            : "Ihre Anfrage ist eingegangen. Wir melden uns mit den nächsten Schritten."}
+                        </p>
+                        <Button
+                          variant="full"
+                          onClick={() => {
+                            setInfo(null);
+                            navigate("projects");
+                          }}
+                        >
+                          Mein Projekt ansehen
+                          <ArrowRight size={18} />
+                        </Button>
+                      </div>
+                    ),
+                  });
+                }}
+                onPrivacy={() =>
+                  setInfo({ title: "Datenschutz", content: privacy })
+                }
+              />
+            ) : (
+              <Empty
+                title="Beginnen wir mit Ihren Wünschen."
+                text="Erstellen Sie ein Konto, um Ihre Beratung zu speichern."
+                action={startCalculator}
+                label="Beratung starten"
+              />
+            )}
+          </>
+        )}
+        {(page === "projects" || page === "admin") &&
+          (user ? (
+            project ? (
+              <ProjectDetail
+                project={project}
+                admin={user.role === "admin"}
+                onBack={() => setSelected(null)}
+                onChanged={async () => {
+                  await refresh();
+                  notify("Gespeichert.");
+                }}
+                notify={notify}
+              />
+            ) : (
+              <>
+                <div className="page-heading">
+                  <h1>
+                    {page === "admin"
+                      ? "Anfragen & Projekte"
+                      : "Ihre Projekte."}
+                  </h1>
+                  <p>
+                    {page === "admin"
+                      ? "Ihre Kunden. Alle nächsten Schritte."
+                      : "Alles Wichtige zu Ihrem Bad an einem Ort."}
+                  </p>
+                </div>
+                {projects.length ? (
+                  <div className="project-list">
+                    {projects.map((p) => (
+                      <button
+                        className="project-list-card"
+                        key={p.id}
+                        onClick={() => openProject(p)}
+                      >
+                        <span className="soft-icon">
+                          <Bath size={24} />
+                        </span>
+                        <div className="project-list-info">
+                          <Badge variant="green">{p.status}</Badge>
+                          <h3>{p.name} · Badsanierung</h3>
+                          <p>{p.address}</p>
+                          <div className="progress-track">
+                            <span style={{ width: p.progress + "%" }} />
+                          </div>
+                        </div>
+                        <ChevronRight size={20} />
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <Empty
+                    title="Hier entsteht Ihr Projekt."
+                    text="Starten Sie mit einer persönlichen Beratung."
+                    action={startCalculator}
+                    label="Beratung starten"
+                  />
+                )}
+                <Button variant="outline full" onClick={startCalculator}>
+                  <Plus size={18} />
+                  Neue Beratung
+                </Button>
+              </>
+            )
+          ) : (
+            <Empty
+              title="Ihr Projekt wartet auf Sie."
+              text="Melden Sie sich an oder starten Sie eine Beratung."
+              action={() => {
+                authNext.current = "projects";
+                setAuth("login");
+              }}
+              label="Anmelden"
+            />
+          ))}
+        {page === "game" && <TileGame />}
+        {page === "settings" && (
+          <>
+            <div className="page-heading">
+              <h1>Ganz persönlich.</h1>
+              <p>Ihr Konto und die kleinen Dinge.</p>
+            </div>
+            <div className="profile-card">
+              <span className="profile-avatar">
+                {user?.name[0] || <User size={27} />}
+              </span>
+              <div>
+                <h2>{user?.name || "Willkommen bei Norde"}</h2>
+                <p>{user?.email || "Ihr persönlicher Badbegleiter"}</p>
+              </div>
+            </div>
+            <div className="settings-group">
+              {user?.role === "admin" && (
+                <button onClick={() => navigate("inbox")}>
+                  <span>
+                    <Mail size={20} />
+                    Neue Anfragen
+                  </span>
+                  <ChevronRight size={17} />
+                </button>
+              )}
+              <button onClick={() => navigate("game")}>
+                <span>
+                  <Gamepad2 size={20} />
+                  Fliesenpause
+                </span>
+                <ChevronRight size={17} />
+              </button>
+              {user && (
+                <button onClick={() => legacyRequest()}>
+                  <span>
+                    <Bath size={20} />
+                    Beratung im Kundenkonto
+                  </span>
+                  <ChevronRight size={17} />
+                </button>
+              )}
+              {!user && (
+                <button
+                  onClick={() => {
+                    authNext.current = "home";
+                    setAuth("login");
+                  }}
+                >
+                  <span>
+                    <User size={20} />
+                    Anmelden oder registrieren
+                  </span>
+                  <ChevronRight size={17} />
+                </button>
+              )}
+              <a href="mailto:info@norde-dev.de">
+                <span>
+                  <Mail size={20} />
+                  Kontakt zum Norde Team
+                </span>
+                <ArrowUpRight size={17} />
+              </a>
+              <button
+                onClick={() =>
+                  setInfo({ title: "Datenschutz", content: privacy })
+                }
+              >
+                <span>
+                  <ShieldCheck size={20} />
+                  Datenschutz
+                </span>
+                <ChevronRight size={17} />
+              </button>
+              <button onClick={() => setOnboarding(0)}>
+                <span>
+                  <Sparkles size={20} />
+                  Begrüßung noch einmal ansehen
+                </span>
+                <ChevronRight size={17} />
+              </button>
+            </div>
+            {demo && (
+              <>
+                <span className="settings-label">DEMO AUSPROBIEREN</span>
+                <div className="settings-group">
+                  <button
+                    onClick={() =>
+                      demoLogin(user?.role === "admin" ? "client" : "admin")
+                    }
+                  >
+                    <span>
+                      <Wrench size={20} />
+                      {user?.role === "admin"
+                        ? "Zur Kundensicht"
+                        : "Team-Demo öffnen"}
+                    </span>
+                    <ChevronRight size={17} />
+                  </button>
+                  {!user && (
+                    <button onClick={() => demoLogin()}>
+                      <span>
+                        <Folder size={20} />
+                        Beispielprojekt ansehen
+                      </span>
+                      <ChevronRight size={17} />
+                    </button>
+                  )}
+                </div>
+                <p className="settings-note">
+                  {OFFLINE
+                    ? "Diese Demo speichert nur auf Ihrem Gerät. Anmeldung und Zahlungen sind simuliert. Bitte verwenden Sie Beispieldaten."
+                    : "Entwicklungsdemo. Bitte verwenden Sie nur Beispieldaten."}
+                </p>
+              </>
+            )}
+            {user && (
+              <button className="signout" onClick={logout}>
+                <LogOut size={17} />
+                Abmelden
+              </button>
+            )}
+            <p className="version-label">NORDE DEVELOPMENT · DESIGN DEMO 0.4</p>
+          </>
+        )}
+      </main>
+      <nav className="bottom-nav" aria-label="Hauptmenü">
+        {[
+          ["home", Home, "Start"],
+          ["calculator", Bath, "Bad konfigurieren"],
+          ["projects", Folder, "Meine Projekte"],
+          ["settings", Settings, "Profil"],
+        ].map(([p, Icon, label]) => (
+          <button
+            key={p}
+            aria-label={label}
+            aria-current={
+              page === p ||
+              (p === "projects" && page === "admin") ||
+              (p === "calculator" && page === "lead")
+                ? "page"
+                : undefined
+            }
+            className={
+              page === p ||
+              (p === "projects" && page === "admin") ||
+              (p === "calculator" && page === "lead")
+                ? "active"
+                : ""
+            }
+            onClick={() =>
+              p === "calculator" ? startCalculator() : navigate(p)
+            }
+          >
+            <Icon size={23} strokeWidth={page === p ? 1.8 : 1.5} />
+            <span className="nav-label">
+              {p === "calculator"
+                ? "Konfigurieren"
+                : p === "projects"
+                  ? "Projekte"
+                  : label}
+            </span>
+          </button>
+        ))}
+      </nav>
+      {overlays}
+    </div>
+  );
+}
+function Empty({ title, text, action, label }) {
+  return (
+    <section className="empty">
+      <div className="icon-tile">
+        <Bath size={28} />
+      </div>
+      <h2>{title}</h2>
+      <p>{text}</p>
+      <Button onClick={action}>
+        {label}
+        <ArrowRight size={17} />
+      </Button>
+    </section>
+  );
+}
+function AuthModal({
+  mode,
+  setMode,
+  onClose,
+  onSuccess,
+  demo,
+  demoLogin,
+  onPrivacy,
+}) {
+  const [busy, setBusy] = useState(false),
+    [error, setError] = useState("");
+  const register = mode === "register";
+  async function submit(e) {
+    e.preventDefault();
+    setBusy(true);
+    setError("");
+    const f = new FormData(e.target);
+    try {
+      const b = await api(register ? "/register" : "/login", "POST", {
+        name: f.get("name"),
+        email: f.get("email"),
+        password: f.get("password"),
+        consent: f.get("consent") === "on",
+      });
+      await onSuccess(b.user);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <Modal
+      title={register ? "Willkommen bei Norde" : "Schön, Sie wiederzusehen"}
+      onClose={onClose}
+    >
+      <p className="muted">
+        {register
+          ? "Ihr neues Bad beginnt mit einem persönlichen Konto."
+          : "Melden Sie sich in Ihrem persönlichen Badbegleiter an."}
+      </p>
+      <form onSubmit={submit} className="form-stack">
+        {register && (
+          <Field label="Ihr Name">
+            <input
+              name="name"
+              required
+              maxLength={100}
+              autoComplete="name"
+              placeholder="Vor- und Nachname"
+            />
+          </Field>
+        )}
+        <Field label="E-Mail">
+          <input
+            name="email"
+            type="email"
+            required
+            autoComplete="email"
+            placeholder="name@beispiel.de"
+            maxLength={254}
+          />
+        </Field>
+        <Field label="Passwort" hint={register ? "Mindestens 10 Zeichen." : ""}>
+          <input
+            name="password"
+            type="password"
+            required
+            minLength={register ? 10 : 1}
+            maxLength={128}
+            autoComplete={register ? "new-password" : "current-password"}
+            placeholder="Ihr Passwort"
+          />
+        </Field>
+        {register && (
+          <label className="checkbox-label">
+            <input name="consent" type="checkbox" required />
+            <span>
+              Ich habe die{" "}
+              <button
+                type="button"
+                className="inline-button"
+                onClick={onPrivacy}
+              >
+                Datenschutzhinweise
+              </button>{" "}
+              gelesen und stimme der Verarbeitung für mein Konto zu.
+            </span>
+          </label>
+        )}
+        {error && (
+          <p className="error" role="alert">
+            {error}
+          </p>
+        )}
+        <Button disabled={busy} variant="full">
+          {busy ? "Einen Moment …" : register ? "Konto erstellen" : "Anmelden"}
+          <ArrowRight size={17} />
+        </Button>
+      </form>
+      <p className="auth-switch">
+        {register ? "Bereits ein Konto?" : "Neu bei Norde?"}{" "}
+        <button
+          className="inline-button"
+          onClick={() => {
+            setMode(register ? "login" : "register");
+            setError("");
+          }}
+        >
+          {register ? "Anmelden" : "Registrieren"}
+        </button>
+      </p>
+      <p className="auth-note">
+        {OFFLINE
+          ? "Nur Simulation: Verwenden Sie ein erfundenes Passwort. Ihre Angaben bleiben auf diesem Gerät."
+          : "Apple- und Google-Anmeldung folgen in einer nächsten Version."}
+      </p>
+      {demo && (
+        <Button variant="outline full" onClick={() => demoLogin()}>
+          Ohne Registrierung als Demo ansehen
+        </Button>
+      )}
+    </Modal>
+  );
+}
+const blank = {
+  name: "",
+  address: "",
+  area: 6,
+  rooms: 1,
+  works: ["Komplettsanierung"],
+  equipment: "Bodengleiche Dusche",
+  extras: [],
+  tier: "Komplett",
+  startDate: "",
+  notes: "",
+  photos: [],
+  consent: false,
+};
+function Configurator({ user, onSubmitted, onPrivacy, prefill }) {
+  const [form, setForm] = useState(() => {
+      try {
+        const saved = JSON.parse(
+          sessionStorage.getItem("norde-draft-" + user.id),
+        );
+        return {
+          ...blank,
+          ...(saved || {}),
+          ...(prefill || {}),
+          photos: [],
+          consent: false,
+          name: user.name,
+        };
+      } catch {
+        return { ...blank, ...(prefill || {}), name: user.name };
+      }
+    }),
+    [step, setStep] = useState(0),
+    [error, setError] = useState(""),
+    [busy, setBusy] = useState(false);
+  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  useEffect(() => {
+    try {
+      const { photos, consent, ...safe } = form;
+      sessionStorage.setItem("norde-draft-" + user.id, JSON.stringify(safe));
+    } catch {}
+  }, [form, user.id]);
+  const toggle = (key, value) =>
+    set(
+      key,
+      form[key].includes(value)
+        ? form[key].filter((x) => x !== value)
+        : [...form[key], value],
+    );
+  async function next(e) {
+    e.preventDefault();
+    setError("");
+    if (step === 1 && !form.works.length) {
+      setError("Bitte mindestens eine Leistung auswählen.");
+      return;
+    }
+    if (step < 3) {
+      setStep(step + 1);
+      window.scrollTo(0, 0);
+      return;
+    }
+    setBusy(true);
+    try {
+      const b = await api("/projects", "POST", form);
+      sessionStorage.removeItem("norde-draft-" + user.id);
+      await onSubmitted(b.project);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  const titles = [
+    "Ihr Bad kennenlernen",
+    "Ihre Wünsche verstehen",
+    "Ausstattung & Zeitraum",
+    "Alles bereit?",
+  ];
+  return (
+    <>
+      <div className="page-heading">
+        <div className="eyebrow">IHRE PERSÖNLICHE BADBERATUNG</div>
+        <h1>Ein paar Schritte zu Ihrem Traumbad.</h1>
+        <p>
+          Ganz ohne Fachwissen. Teilen Sie Ihre Wünsche — wir planen gemeinsam
+          mit Ihnen.
+        </p>
+      </div>
+      <div className="config-layout">
+        <aside className="config-steps">
+          {titles.map((title, i) => (
+            <div
+              className={i === step ? "current" : i < step ? "done" : ""}
+              key={title}
+            >
+              <span>{i < step ? <Check size={17} /> : i + 1}</span>
+              <div>
+                <small>SCHRITT {i + 1}</small>
+                <b>{title}</b>
+              </div>
+            </div>
+          ))}
+          <div className="config-reassurance">
+            <ShieldCheck />
+            <h4>In guten Händen.</h4>
+            <p>
+              Ihre Anfrage ist unverbindlich. Das persönliche Angebot erstellen
+              wir nach Prüfung Ihrer Angaben.
+            </p>
+          </div>
+        </aside>
+        <form className="card config-form" onSubmit={next}>
+          <div className="form-step-heading">
+            <span className="eyebrow">SCHRITT {step + 1} VON 4</span>
+            <h2>{titles[step]}</h2>
+            <p>
+              {
+                [
+                  "Damit wir wissen, wo Ihr neues Bad entsteht.",
+                  "Was möchten Sie in Ihrem Bad verändern?",
+                  "Wählen Sie, was sich für Sie richtig anfühlt.",
+                  "Prüfen Sie Ihre Wünsche und senden Sie uns Ihre Anfrage.",
+                ][step]
+              }
+            </p>
+          </div>
+          {step === 0 && (
+            <>
+              <div className="form-grid">
+                <Field label="Vor- und Nachname">
+                  <input
+                    required
+                    maxLength={100}
+                    value={form.name}
+                    onChange={(e) => set("name", e.target.value)}
+                    autoComplete="name"
+                  />
+                </Field>
+                <Field label="Adresse des Projekts">
+                  <input
+                    required
+                    maxLength={300}
+                    placeholder="Straße, Hausnummer, PLZ, Ort"
+                    value={form.address}
+                    onChange={(e) => set("address", e.target.value)}
+                    autoComplete="street-address"
+                  />
+                </Field>
+                <Field label="Fläche pro Badezimmer (m²)">
+                  <input
+                    required
+                    type="number"
+                    min="0.5"
+                    max="100"
+                    step="0.1"
+                    value={form.area}
+                    onChange={(e) =>
+                      set(
+                        "area",
+                        e.target.value === "" ? "" : Number(e.target.value),
+                      )
+                    }
+                  />
+                </Field>
+                <Field label="Anzahl der Badezimmer">
+                  <select
+                    value={form.rooms}
+                    onChange={(e) => set("rooms", Number(e.target.value))}
+                  >
+                    {[1, 2, 3, 4].map((n) => (
+                      <option key={n}>{n}</option>
+                    ))}
+                  </select>
+                </Field>
+              </div>
+              <h4>
+                Zeigen Sie uns Ihr aktuelles Bad{" "}
+                <span className="optional">Optional</span>
+              </h4>
+              <PhotoInput
+                photos={form.photos}
+                onChange={(p) => set("photos", p)}
+                onError={setError}
+              />
+            </>
+          )}
+          {step === 1 && (
+            <>
+              <div className="choice-grid">
+                {[
+                  [
+                    "Komplettsanierung",
+                    Bath,
+                    "Alles neu, von der Leitung bis zur Fliese.",
+                  ],
+                  [
+                    "Dusche / Badewanne",
+                    Droplets,
+                    "Ein neuer Platz zum Entspannen.",
+                  ],
+                  [
+                    "Fliesen & Oberflächen",
+                    Grid2X2,
+                    "Ein frischer Look für Wände und Boden.",
+                  ],
+                  [
+                    "Sanitär & Anschlüsse",
+                    Wrench,
+                    "Waschtisch, WC und neue Leitungen.",
+                  ],
+                ].map(([name, Icon, text]) => (
+                  <button
+                    key={name}
+                    type="button"
+                    className={
+                      "choice " + (form.works.includes(name) ? "selected" : "")
+                    }
+                    onClick={() => toggle("works", name)}
+                    aria-pressed={form.works.includes(name)}
+                  >
+                    <Icon />
+                    <span>
+                      <b>{name}</b>
+                      <small>{text}</small>
+                    </span>
+                    <span className="choice-check">
+                      {form.works.includes(name) && <Check size={13} />}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <Field label="Wie möchten Sie duschen oder baden?">
+                <select
+                  value={form.equipment}
+                  onChange={(e) => set("equipment", e.target.value)}
+                >
+                  {[
+                    "Bodengleiche Dusche",
+                    "Dusche mit Duschtasse",
+                    "Badewanne",
+                    "Dusche und Badewanne",
+                    "Noch unentschieden",
+                  ].map((t) => (
+                    <option key={t}>{t}</option>
+                  ))}
+                </select>
+              </Field>
+              <p className="field-note">
+                Die technische Machbarkeit prüfen wir bei der Planung.
+              </p>
+              <h4>
+                Ein bisschen mehr Komfort{" "}
+                <span className="optional">Optional</span>
+              </h4>
+              <div className="chips">
+                {[
+                  "Fußbodenheizung",
+                  "LED-Spiegel",
+                  "Handtuchheizkörper",
+                  "Neue Decke & Spots",
+                  "Waschmaschinenanschluss",
+                  "Barrierearme Gestaltung",
+                ].map((t) => (
+                  <button
+                    type="button"
+                    key={t}
+                    className={form.extras.includes(t) ? "selected" : ""}
+                    onClick={() => toggle("extras", t)}
+                    aria-pressed={form.extras.includes(t)}
+                  >
+                    {form.extras.includes(t) ? (
+                      <Check size={14} />
+                    ) : (
+                      <Plus size={14} />
+                    )}{" "}
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+          {step === 2 && (
+            <>
+              <div className="tier-grid">
+                {[
+                  [
+                    "Essential",
+                    "Gezielt erneuern",
+                    "Individuelles Angebot",
+                    "Für ausgewählte Arbeiten und einfache Ausstattung.",
+                  ],
+                  [
+                    "Komplett",
+                    "Unser bewährtes Paket",
+                    money(PRICE_CATALOGUE.base),
+                    "Komplette Sanierung bis 6 m², inklusive Material und Ausstattung.",
+                  ],
+                  [
+                    "Signature",
+                    "Mehr Raum für Wünsche",
+                    "Individuelles Angebot",
+                    "Besondere Materialien und zusätzliche Komfortwünsche.",
+                  ],
+                ].map(([tier, title, price, text]) => (
+                  <button
+                    type="button"
+                    key={tier}
+                    className={"tier " + (form.tier === tier ? "selected" : "")}
+                    onClick={() => set("tier", tier)}
+                    aria-pressed={form.tier === tier}
+                  >
+                    {tier === "Komplett" && (
+                      <span className="tier-recommend">
+                        UNSER KOMPLETTPAKET
+                      </span>
+                    )}
+                    <small>{tier}</small>
+                    <h4>{title}</h4>
+                    <b>{price}</b>
+                    <p>{text}</p>
+                    <span className="choice-check">
+                      {form.tier === tier && <Check size={13} />}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              {(form.area > PRICE_CATALOGUE.maxStandardArea ||
+                form.rooms > 1) && (
+                <div className="notice">
+                  <CircleHelp size={20} />
+                  <p>
+                    Bei mehr als 6 m² pro Bad oder mehreren Bädern erstellen wir
+                    ein individuelles Angebot. Der Paketpreis wird nicht
+                    automatisch multipliziert.
+                  </p>
+                </div>
+              )}
+              <Field
+                label="Gewünschter Beginn"
+                hint="Ihr Wunschtermin — die Verfügbarkeit bestätigen wir persönlich."
+              >
+                <input
+                  required
+                  type="date"
+                  min={new Date().toLocaleDateString("sv-SE")}
+                  value={form.startDate}
+                  onChange={(e) => set("startDate", e.target.value)}
+                />
+              </Field>
+              <Field
+                label="Was sollten wir noch wissen?"
+                hint="Zum Beispiel Stil, Zugänglichkeit, Etage oder besondere Wünsche."
+              >
+                <textarea
+                  maxLength={3000}
+                  rows={3}
+                  placeholder="Erzählen Sie uns von Ihren Ideen …"
+                  value={form.notes}
+                  onChange={(e) => set("notes", e.target.value)}
+                />
+              </Field>
+            </>
+          )}
+          {step === 3 && (
+            <>
+              <div className="summary-grid">
+                {[
+                  ["Projekt", form.name],
+                  ["Adresse", form.address],
+                  ["Badgröße", `${form.rooms} × ${form.area} m²`],
+                  ["Leistungen", form.works.join(", ")],
+                  ["Dusche / Badewanne", form.equipment],
+                  ["Extras", form.extras.join(", ") || "Keine ausgewählt"],
+                  ["Ausstattung", form.tier],
+                  ["Wunschtermin", date(form.startDate)],
+                  ["Fotos", `${form.photos.length} Fotos`],
+                ].map(([k, v]) => (
+                  <div key={k}>
+                    <small>{k}</small>
+                    <b>{v}</b>
+                  </div>
+                ))}
+              </div>
+              {form.notes && <p className="notes">{form.notes}</p>}
+              <div className="notice">
+                <ShieldCheck size={22} />
+                <p>
+                  Dies ist eine Beratungsanfrage, keine Bestellung. Sie erhalten
+                  Ihr individuelles Angebot nach persönlicher Abstimmung.
+                </p>
+              </div>
+              <label className="checkbox-label">
+                <input
+                  required
+                  type="checkbox"
+                  checked={form.consent}
+                  onChange={(e) => set("consent", e.target.checked)}
+                />
+                <span>
+                  Ich stimme der Verarbeitung meiner Angaben und Fotos zur
+                  Bearbeitung dieser Anfrage zu.{" "}
+                  <button
+                    className="inline-button"
+                    type="button"
+                    onClick={onPrivacy}
+                  >
+                    Datenschutzhinweise lesen
+                  </button>
+                </span>
+              </label>
+            </>
+          )}
+          {error && (
+            <div className="error" role="alert">
+              {error}
+            </div>
+          )}
+          <div className="form-navigation">
+            {step > 0 ? (
+              <Button
+                type="button"
+                variant="outline"
+                disabled={busy}
+                onClick={() => {
+                  setStep(step - 1);
+                  setError("");
+                }}
+              >
+                <ArrowLeft size={17} />
+                Zurück
+              </Button>
+            ) : (
+              <span className="muted">Unverbindlich & persönlich</span>
+            )}
+            <Button disabled={busy}>
+              {busy
+                ? "Wird gesendet …"
+                : step === 3
+                  ? "Anfrage senden"
+                  : "Weiter"}
+              <ArrowRight size={17} />
+            </Button>
+          </div>
+        </form>
+      </div>
+    </>
+  );
+}
+function ProjectDetail({ project: p, admin, onBack, onChanged, notify }) {
+  const [tab, setTab] = useState("updates"),
+    [modal, setModal] = useState(null),
+    [error, setError] = useState(""),
+    [busy, setBusy] = useState(false),
+    [photos, setPhotos] = useState([]);
+  function open(m) {
+    setModal(m);
+    setError("");
+    setPhotos([]);
+  }
+  async function submit(e) {
+    e.preventDefault();
+    setBusy(true);
+    setError("");
+    const f = new FormData(e.target);
+    try {
+      let data,
+        path = "/projects/" + p.id,
+        method = "POST";
+      if (modal === "status") {
+        method = "PATCH";
+        data = {
+          status: f.get("status"),
+          progress: Number(f.get("progress")),
+          startDate: f.get("startDate"),
+          endDate: f.get("endDate"),
+        };
+      } else if (modal === "update") {
+        path += "/updates";
+        data = { title: f.get("title"), text: f.get("text"), photos };
+      } else if (modal === "invoice") {
+        path += "/invoices";
+        const file = f.get("file");
+        if (file.size > 8 * 1024 * 1024) throw Error("PDF maximal 8 MB.");
+        const pdf = await new Promise((resolve, reject) => {
+          const r = new FileReader();
+          r.onload = () => resolve(r.result);
+          r.onerror = () => reject(Error("PDF konnte nicht gelesen werden."));
+          r.readAsDataURL(file);
+        });
+        data = {
+          title: f.get("title"),
+          number: f.get("number"),
+          amount: Number(f.get("amount")),
+          due: f.get("due"),
+          file: pdf,
+        };
+      } else {
+        path += "/review";
+        data = { rating: Number(f.get("rating")), text: f.get("text") };
+      }
+      await api(path, method, data);
+      await onChanged();
+      setModal(null);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  const stage = stages.indexOf(p.status);
+  return (
+    <>
+      <button className="text-button back-button" onClick={onBack}>
+        <ArrowLeft size={17} />
+        Zur Projektübersicht
+      </button>
+      <div className="page-heading project-title">
+        <div>
+          <div className="eyebrow">IHR BADPROJEKT</div>
+          <h1>
+            {p.status === "Anfrage"
+              ? "Vielen Dank für Ihre Anfrage."
+              : "Schritt für Schritt zu Ihrem neuen Bad."}
+          </h1>
+          <p>
+            {p.address} · {p.area} m² · {p.tier}
+          </p>
+        </div>
+        <Badge variant="green">{p.status}</Badge>
+      </div>
+      <div className="project-next-step">
+        <span className="eyebrow">IHR NÄCHSTER SCHRITT</span>
+        <p>
+          {p.status === "Anfrage"
+            ? "Planung und Wünsche gemeinsam besprechen."
+            : p.status === "Abgeschlossen"
+              ? "Ihr Bad ist fertig. Dokumente und Rückmeldung finden Sie hier."
+              : "Verfolgen Sie die aktuelle Phase und die nächsten Termine."}
+        </p>
+      </div>
+      <div className="project-detail-grid">
+        <section className="card">
+          <div className="section-heading">
+            <h3>
+              {p.status === "Anfrage"
+                ? "Ihre Beratung ist vorgemerkt"
+                : "Ihr Projektfortschritt"}
+            </h3>
+            <b className="progress-value">{p.progress}%</b>
+          </div>
+          <div className="progress-track large">
+            <span style={{ width: p.progress + "%" }} />
+          </div>
+          <div
+            className="stage-list"
+            role="group"
+            aria-label="Projektphasen"
+            tabIndex={0}
+          >
+            {stages.map((s, i) => (
+              <div
+                key={s}
+                className={i < stage ? "done" : i === stage ? "current" : ""}
+              >
+                <span>{i < stage ? <Check size={13} /> : i + 1}</span>
+                <small>{s}</small>
+              </div>
+            ))}
+          </div>
+          {p.status === "Anfrage" && (
+            <p className="field-note">
+              Das Norde Team prüft Ihre Wünsche und stimmt die nächsten Schritte
+              mit Ihnen ab.
+            </p>
+          )}
+          {admin && (
+            <Button variant="outline" onClick={() => open("status")}>
+              <Settings size={16} />
+              Status & Termine bearbeiten
+            </Button>
+          )}
+        </section>
+        <section className="card dates-card">
+          <div>
+            <Calendar size={20} />
+            <span>
+              <small>
+                {p.status === "Anfrage"
+                  ? "Gewünschter Beginn"
+                  : "Geplanter Beginn"}
+              </small>
+              <b>{date(p.startDate)}</b>
+            </span>
+          </div>
+          <div>
+            <Clock size={20} />
+            <span>
+              <small>Voraussichtliche Fertigstellung</small>
+              <b>{date(p.endDate)}</b>
+            </span>
+          </div>
+          <p>
+            Termine können sich im Projektverlauf ändern. Wir halten Sie auf dem
+            Laufenden.
+          </p>
+        </section>
+      </div>
+      <div className="tabs">
+        {[
+          ["updates", "Fortschritt & Fotos"],
+          ["invoices", "Angebote & Rechnungen"],
+          ["request", "Meine Anfrage"],
+        ].map(([k, title]) => (
+          <button
+            className={tab === k ? "active" : ""}
+            onClick={() => setTab(k)}
+            key={k}
+          >
+            {title}
+            {k === "invoices" && <span>{p.invoices.length}</span>}
+          </button>
+        ))}
+      </div>
+      {tab === "updates" && (
+        <>
+          <div className="section-heading">
+            <h2>Neues von Ihrem Bad</h2>
+            {admin && (
+              <Button onClick={() => open("update")}>
+                <Plus size={17} />
+                Update hinzufügen
+              </Button>
+            )}
+          </div>
+          {p.updates.length ? (
+            <div className="timeline">
+              {[...p.updates].reverse().map((u) => (
+                <article className="card timeline-item" key={u.id}>
+                  <span className="timeline-dot" />
+                  <span className="eyebrow">
+                    {new Date(u.date).toLocaleDateString("de-DE", {
+                      day: "numeric",
+                      month: "long",
+                      year: "numeric",
+                    })}{" "}
+                    · NORDE TEAM
+                  </span>
+                  <h3>{u.title}</h3>
+                  <p>{u.text}</p>
+                  {u.photos.length > 0 && (
+                    <div className="update-photos">
+                      {u.photos.map((photo, i) => (
+                        <button
+                          key={i}
+                          onClick={() => open({ photo })}
+                          aria-label={"Projektfoto " + (i + 1) + " vergrößern"}
+                        >
+                          <img
+                            src={photo}
+                            alt={"Projektfortschritt: " + u.title}
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className="card empty-small">
+              <Camera />
+              <h3>Hier entsteht Ihre Projektgeschichte.</h3>
+              <p>
+                Sobald wir starten, finden Sie hier Fotos und Neuigkeiten vom
+                Norde Team.
+              </p>
+            </div>
+          )}
+          {p.status === "Abgeschlossen" && (
+            <section className="card review-card">
+              <Star />
+              <h3>Wie gefällt Ihnen Ihr neues Bad?</h3>
+              {p.review ? (
+                <>
+                  <p>{"★".repeat(p.review.rating)}</p>
+                  <p>{p.review.text}</p>
+                </>
+              ) : !admin ? (
+                <Button onClick={() => open("review")}>
+                  Bewertung hinterlassen
+                </Button>
+              ) : (
+                <p>Der Kunde kann jetzt eine Bewertung hinterlassen.</p>
+              )}
+            </section>
+          )}
+        </>
+      )}
+      {tab === "invoices" && (
+        <>
+          <div className="section-heading">
+            <h2>Ihre Dokumente</h2>
+            {admin && (
+              <Button onClick={() => open("invoice")}>
+                <Upload size={17} />
+                Rechnung hochladen
+              </Button>
+            )}
+          </div>
+          <div className="notice">
+            <FileText size={22} />
+            <p>
+              Rechnungen werden passend zum vereinbarten Zahlungsplan
+              bereitgestellt. Online-Zahlungen sind in dieser Version noch nicht
+              angeschlossen.
+            </p>
+          </div>
+          {p.invoices.length ? (
+            p.invoices.map((i) => (
+              <section className="card invoice" key={i.id}>
+                <span className="icon-tile">
+                  <FileText />
+                </span>
+                <div>
+                  <Badge>{i.number}</Badge>
+                  <h3>{i.title}</h3>
+                  <p>
+                    Fällig am {date(i.due)} ·{" "}
+                    {i.status === "offen" ? "Offen" : "Bezahlt"}
+                  </p>
+                </div>
+                <strong>{money(i.amount)}</strong>
+                <div className="invoice-actions">
+                  {i.file ? (
+                    <a
+                      className="button outline"
+                      href={`/api/projects/${p.id}/document?invoice=${i.id}`}
+                    >
+                      <Download size={16} />
+                      PDF
+                    </a>
+                  ) : (
+                    <span className="muted">Beispielrechnung ohne PDF</span>
+                  )}
+                  <Button
+                    variant="outline"
+                    onClick={() =>
+                      notify(
+                        "Apple Pay und Kartenzahlungen sind noch nicht angeschlossen. Es wurde keine Zahlung ausgelöst.",
+                      )
+                    }
+                  >
+                    Zahlungsoptionen
+                  </Button>
+                </div>
+              </section>
+            ))
+          ) : (
+            <div className="card empty-small">
+              <FileText />
+              <h3>Noch keine Dokumente.</h3>
+              <p>Das Norde Team stellt Ihre Rechnungen hier bereit.</p>
+            </div>
+          )}
+        </>
+      )}
+      {tab === "request" && (
+        <section className="card">
+          <h3>Ihre Beratungsanfrage</h3>
+          <div className="summary-grid">
+            {[
+              ["Name", p.name],
+              ["Adresse", p.address],
+              ["Badezimmer", `${p.rooms} × ${p.area} m²`],
+              ["Leistungen", p.works.join(", ")],
+              ["Ausstattung", p.tier],
+              ["Dusche / Badewanne", p.equipment],
+              ["Extras", p.extras.join(", ") || "Keine"],
+              ["Wunschtermin", date(p.startDate)],
+            ].map(([k, v]) => (
+              <div key={k}>
+                <small>{k}</small>
+                <b>{v}</b>
+              </div>
+            ))}
+          </div>
+          {p.notes && <p className="notes">{p.notes}</p>}
+          {p.photos.length > 0 && (
+            <div className="update-photos">
+              {p.photos.map((photo, i) => (
+                <button
+                  key={i}
+                  onClick={() => open({ photo })}
+                  aria-label={"Badfoto " + (i + 1) + " vergrößern"}
+                >
+                  <img src={photo} alt={"Foto der Anfrage " + (i + 1)} />
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+      {modal && (
+        <Modal
+          title={
+            typeof modal === "object"
+              ? "Projektfoto"
+              : {
+                  status: "Projektstand bearbeiten",
+                  update: "Neues Projektupdate",
+                  invoice: "Rechnung bereitstellen",
+                  review: "Ihre Bewertung",
+                }[modal]
+          }
+          onClose={() => !busy && setModal(null)}
+        >
+          {typeof modal === "object" ? (
+            <img
+              className="full-photo"
+              src={modal.photo}
+              alt="Vergrößertes Projektfoto"
+            />
+          ) : (
+            <form className="form-stack" onSubmit={submit}>
+              {modal === "status" && (
+                <>
+                  <Field label="Projektphase">
+                    <select name="status" defaultValue={p.status}>
+                      {stages.map((s) => (
+                        <option key={s}>{s}</option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Fortschritt (%)">
+                    <input
+                      name="progress"
+                      required
+                      type="number"
+                      min="0"
+                      max="100"
+                      defaultValue={p.progress}
+                    />
+                  </Field>
+                  <Field label="Geplanter Beginn">
+                    <input
+                      name="startDate"
+                      type="date"
+                      defaultValue={p.startDate}
+                    />
+                  </Field>
+                  <Field label="Voraussichtlicher Abschluss">
+                    <input
+                      name="endDate"
+                      type="date"
+                      defaultValue={p.endDate || ""}
+                    />
+                  </Field>
+                </>
+              )}
+              {modal === "update" && (
+                <>
+                  <Field label="Titel">
+                    <input
+                      name="title"
+                      required
+                      maxLength={150}
+                      placeholder="Zum Beispiel: Die Fliesen sind verlegt"
+                    />
+                  </Field>
+                  <Field label="Nachricht an den Kunden">
+                    <textarea name="text" rows={4} required maxLength={3000} />
+                  </Field>
+                  <PhotoInput
+                    photos={photos}
+                    onChange={setPhotos}
+                    onError={setError}
+                  />
+                </>
+              )}
+              {modal === "invoice" && (
+                <>
+                  <Field label="Rechnungsnummer">
+                    <input name="number" required maxLength={80} />
+                  </Field>
+                  <Field label="Bezeichnung">
+                    <input
+                      name="title"
+                      required
+                      maxLength={150}
+                      placeholder="1. Abschlagsrechnung"
+                    />
+                  </Field>
+                  <div className="form-grid">
+                    <Field label="Betrag (€)">
+                      <input
+                        name="amount"
+                        type="number"
+                        required
+                        min="0.01"
+                        max="1000000"
+                        step="0.01"
+                      />
+                    </Field>
+                    <Field label="Fällig am">
+                      <input name="due" type="date" required />
+                    </Field>
+                  </div>
+                  <Field label="Rechnung als PDF (max. 8 MB)">
+                    <input
+                      name="file"
+                      type="file"
+                      accept="application/pdf"
+                      required
+                    />
+                  </Field>
+                  <p className="field-note">
+                    Laden Sie nur die Rechnung dieses Kunden hoch. Das Dokument
+                    ist für den Kunden und das Norde Team sichtbar.
+                  </p>
+                </>
+              )}
+              {modal === "review" && (
+                <>
+                  <Field label="Ihre Bewertung">
+                    <select name="rating">
+                      {[5, 4, 3, 2, 1].map((n) => (
+                        <option value={n} key={n}>
+                          {"★".repeat(n)} · {n} von 5
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Ihre Erfahrung">
+                    <textarea name="text" required maxLength={2000} rows={4} />
+                  </Field>
+                  <p className="field-note">
+                    Ihre Bewertung ist zunächst nur für Sie und das Norde Team
+                    sichtbar.
+                  </p>
+                </>
+              )}
+              {error && (
+                <p className="error" role="alert">
+                  {error}
+                </p>
+              )}
+              <Button disabled={busy} variant="full">
+                {busy ? "Wird gespeichert …" : "Speichern"}
+                <Check size={17} />
+              </Button>
+            </form>
+          )}
+        </Modal>
+      )}
+    </>
+  );
+}
+function TileGame() {
+  const size = 16,
+    initial = [
+      [5, 8],
+      [4, 8],
+      [3, 8],
+    ];
+  const [snake, setSnake] = useState(initial),
+    [tile, setTile] = useState([11, 8]),
+    [running, setRunning] = useState(false),
+    [over, setOver] = useState(false),
+    [score, setScore] = useState(0),
+    [high, setHigh] = useState(() => {
+      try {
+        return Number(localStorage.getItem("norde-tiles-high")) || 0;
+      } catch {
+        return 0;
+      }
+    });
+  const direction = useRef([1, 0]),
+    queued = useRef(false),
+    touch = useRef(null),
+    board = useRef();
+  function turn(x, y) {
+    if (queued.current || over || !running) return;
+    const [dx, dy] = direction.current;
+    if (dx === -x && dy === -y) return;
+    direction.current = [x, y];
+    queued.current = true;
+  }
+  function reset() {
+    direction.current = [1, 0];
+    queued.current = false;
+    setSnake(initial);
+    setTile([11, 8]);
+    setScore(0);
+    setOver(false);
+    setRunning(true);
+    board.current?.focus();
+  }
+  useEffect(() => {
+    function key(e) {
+      const dirs = {
+        ArrowUp: [0, -1],
+        ArrowDown: [0, 1],
+        ArrowLeft: [-1, 0],
+        ArrowRight: [1, 0],
+        w: [0, -1],
+        s: [0, 1],
+        a: [-1, 0],
+        d: [1, 0],
+      };
+      if (dirs[e.key]) {
+        e.preventDefault();
+        turn(...dirs[e.key]);
+      } else if (e.code === "Space") {
+        e.preventDefault();
+        if (over) reset();
+        else setRunning((v) => !v);
+      }
+    }
+    const el = board.current;
+    el.addEventListener("keydown", key);
+    return () => el.removeEventListener("keydown", key);
+  }, [running, over]);
+  useEffect(() => {
+    if (!running) return;
+    const timer = setInterval(
+      () => {
+        setSnake((current) => {
+          const [dx, dy] = direction.current;
+          queued.current = false;
+          const head = [current[0][0] + dx, current[0][1] + dy];
+          const eating = head[0] === tile[0] && head[1] === tile[1];
+          const body = eating ? current : current.slice(0, -1);
+          if (
+            head.some((v) => v < 0 || v >= size) ||
+            body.some(([x, y]) => x === head[0] && y === head[1])
+          ) {
+            setRunning(false);
+            setOver(true);
+            return current;
+          }
+          const next = [head, ...current];
+          if (!eating) next.pop();
+          else {
+            const points = score + 10;
+            setScore(points);
+            if (points > high) {
+              setHigh(points);
+              try {
+                localStorage.setItem("norde-tiles-high", String(points));
+              } catch {}
+            }
+            const available = [];
+            for (let x = 0; x < size; x++)
+              for (let y = 0; y < size; y++)
+                if (!next.some(([nx, ny]) => nx === x && ny === y))
+                  available.push([x, y]);
+            if (available.length)
+              setTile(available[Math.floor(Math.random() * available.length)]);
+            else {
+              setRunning(false);
+              setOver(true);
+            }
+          }
+          return next;
+        });
+      },
+      Math.max(90, 220 - score),
+    );
+    return () => clearInterval(timer);
+  }, [running, tile, score, high]);
+  return (
+    <>
+      <div className="page-heading">
+        <div className="eyebrow">EINE KLEINE AUSZEIT</div>
+        <h1>Fliesenpause.</h1>
+        <p>
+          Ihr Bad wird schön. Ihre Pause auch. Sammeln Sie Fliesen und legen Sie
+          die längste Spur!
+        </p>
+      </div>
+      <div className="game-layout">
+        <section className="card game-card">
+          <div className="game-score">
+            <span>
+              <small>IHRE PUNKTE</small>
+              <b>{String(score).padStart(3, "0")}</b>
+            </span>
+            <div className="badge green">
+              <Sparkles size={14} /> FLIESENPAUSE
+            </div>
+            <span>
+              <small>REKORD</small>
+              <b>{String(high).padStart(3, "0")}</b>
+            </span>
+          </div>
+          <div
+            className="game-board"
+            ref={board}
+            tabIndex={0}
+            role="application"
+            aria-label="Fliesenspiel. Mit Pfeiltasten oder Wischgesten steuern, Leertaste pausiert."
+            onTouchStart={(e) =>
+              (touch.current = [e.touches[0].clientX, e.touches[0].clientY])
+            }
+            onTouchEnd={(e) => {
+              if (!touch.current) return;
+              const dx = e.changedTouches[0].clientX - touch.current[0],
+                dy = e.changedTouches[0].clientY - touch.current[1];
+              if (Math.max(Math.abs(dx), Math.abs(dy)) > 15)
+                turn(
+                  ...(Math.abs(dx) > Math.abs(dy)
+                    ? [Math.sign(dx), 0]
+                    : [0, Math.sign(dy)]),
+                );
+              touch.current = null;
+            }}
+          >
+            <div className="board-grid">
+              {Array.from({ length: size * size }, (_, i) => {
+                const x = i % size,
+                  y = Math.floor(i / size),
+                  index = snake.findIndex(([sx, sy]) => sx === x && sy === y);
+                return (
+                  <span
+                    className={
+                      index === 0
+                        ? "plumber"
+                        : index > 0
+                          ? "laid-tile"
+                          : tile[0] === x && tile[1] === y
+                            ? "collect-tile"
+                            : ""
+                    }
+                    key={i}
+                  >
+                    {index === 0
+                      ? "🔧"
+                      : tile[0] === x && tile[1] === y
+                        ? "✦"
+                        : ""}
+                  </span>
+                );
+              })}
+            </div>
+            {!running && (
+              <div className="game-overlay">
+                <div className="game-overlay-inner">
+                  <Gamepad2 size={38} />
+                  <h2>
+                    {over
+                      ? "Gut verlegt!"
+                      : score
+                        ? "Kurze Pause?"
+                        : "Bereit zum Fliesenlegen?"}
+                  </h2>
+                  <p>
+                    {over
+                      ? `${score} Punkte — eine Fliese geht noch!`
+                      : "Sammeln Sie die goldenen Fliesen. Bleiben Sie innerhalb des Badezimmers."}
+                  </p>
+                  <Button
+                    variant="light"
+                    onClick={() => {
+                      if (over || !score) reset();
+                      else {
+                        setRunning(true);
+                        board.current.focus();
+                      }
+                    }}
+                  >
+                    <Play size={17} />
+                    {over
+                      ? "Noch eine Runde"
+                      : score
+                        ? "Weiterspielen"
+                        : "Spiel starten"}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="game-controls">
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (over) reset();
+                else {
+                  setRunning(!running);
+                  board.current.focus();
+                }
+              }}
+            >
+              {running ? <Pause size={16} /> : <Play size={16} />}{" "}
+              {running ? "Pause" : "Start"}
+            </Button>
+            <span className="muted">Pfeiltasten · WASD · Wischen</span>
+            <button
+              className="icon-button"
+              onClick={reset}
+              aria-label="Spiel neu starten"
+            >
+              <RotateCcw size={20} />
+            </button>
+          </div>
+          <div className="direction-controls">
+            <button aria-label="Nach oben" onClick={() => turn(0, -1)}>
+              ↑
+            </button>
+            <div>
+              <button aria-label="Nach links" onClick={() => turn(-1, 0)}>
+                ←
+              </button>
+              <button aria-label="Nach unten" onClick={() => turn(0, 1)}>
+                ↓
+              </button>
+              <button aria-label="Nach rechts" onClick={() => turn(1, 0)}>
+                →
+              </button>
+            </div>
+          </div>
+        </section>
+        <aside className="game-aside">
+          <div className="tile-mini">
+            <span />
+            <span />
+            <span />
+            <span />
+            <span className="gold" />
+            <span />
+            <span />
+            <span />
+            <span />
+          </div>
+          <h2>
+            Große Pläne. <br />
+            Kleine Pause.
+          </h2>
+          <p>
+            Unser Handwerker sammelt goldene Fliesen. Mit jeder Fliese wächst
+            die verlegte Spur — und Ihr Punktestand.
+          </p>
+          <ul className="included-list">
+            <li>
+              <Check size={16} />
+              Goldene Fliese sammeln: +10 Punkte
+            </li>
+            <li>
+              <Check size={16} />
+              Wände und eigene Spur vermeiden
+            </li>
+            <li>
+              <Check size={16} />
+              Ihr Rekord bleibt auf diesem Gerät
+            </li>
+          </ul>
+          <p className="field-note">
+            Nur zum Spaß. Keine Käufe, keine Werbung und keine Auswirkung auf
+            Ihren Projektpreis.
+          </p>
+        </aside>
+      </div>
+    </>
+  );
+}
+createRoot(document.getElementById("root")).render(<App />);
