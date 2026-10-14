@@ -1,10 +1,98 @@
-import React,{useEffect,useState} from 'react';
-import {LEAD_STATUSES} from './lead-schema.js';
-
-export default function LeadInbox(){
- const [leads,setLeads]=useState([]),[error,setError]=useState(''),[loading,setLoading]=useState(true);
- async function refresh(){try{const r=await fetch('/api/leads');const b=await r.json();if(!r.ok)throw Error(b.error||'Anfragen nicht verfügbar.');setLeads(b.leads);setError('');}catch(e){setError(e.message)}finally{setLoading(false)}}
- useEffect(()=>{refresh()},[]);
- async function update(id,status){const r=await fetch('/api/leads/'+id,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({status})});if(!r.ok){setError('Status konnte nicht gespeichert werden.');return;}await refresh()}
- return <section className="lead-inbox"><div className="page-heading"><h1>Neue Anfragen</h1><p>Konfigurationen und Erstkontakte</p></div>{loading?<p>Lädt …</p>:null}{error?<p role="alert">{error}</p>:null}<button onClick={refresh}>Aktualisieren</button>{leads.map(lead=><article className="card" key={lead.id} style={{margin:'15px 0'}}><h2 style={{fontSize:19}}>{lead.name}</h2><p>{lead.address} · {lead.configuration?.area} m²</p><p>Tel: <a href={'tel:'+lead.phone}>{lead.phone}</a> {lead.email&&<>· <a href={'mailto:'+lead.email}>{lead.email}</a></>}</p><p>Ausstattung: {lead.configuration?.equipment}</p><p>Extras: {lead.configuration?.extras?.join(', ')||'Keine'}</p><p><strong>{lead.quote?.total==null?'Individuelles Angebot':new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR'}).format(lead.quote.total)}</strong> · Unverbindlicher Testwert</p>{lead.notes&&<p>Notiz: {lead.notes}</p>}<label>Status: <select value={lead.status} onChange={e=>update(lead.id,e.target.value)}>{LEAD_STATUSES.map(s=><option key={s}>{s}</option>)}</select></label></article>)}{!loading&&!leads.length&&!error?<p>Noch keine Anfragen.</p>:null}</section>
+import React, { useState } from "react";
+import { ArrowUpRight, RefreshCw } from "lucide-react";
+import { LEAD_STATUSES } from "./lead-schema.js";
+import { listDemoInquiries, updateDemoInquiry } from "./demo-inquiries.js";
+import { configurationLabel } from "./bathroom-options.js";
+import { formatPrice } from "./PriceCalculator.jsx";
+export default function LeadInbox() {
+  const [leads, setLeads] = useState(listDemoInquiries),
+    [error, setError] = useState("");
+  function update(id, status) {
+    try {
+      updateDemoInquiry(id, status);
+      setLeads(listDemoInquiries());
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+  return (
+    <section className="lead-inbox">
+      <div className="page-heading">
+        <span className="eyebrow">LOKALE DEMONSTRATION</span>
+        <h1>Anfragen im Blick.</h1>
+        <p>
+          Diese Beispieldaten befinden sich nur auf diesem Gerät. Es wurde
+          nichts an Norde übermittelt.
+        </p>
+      </div>
+      <button
+        className="button outline"
+        onClick={() => setLeads(listDemoInquiries())}
+      >
+        <RefreshCw size={16} />
+        Aktualisieren
+      </button>
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
+      <div className="inbox-grid">
+        {leads.map((lead) => (
+          <article className="card" key={lead.id}>
+            <span className="badge green">{lead.id}</span>
+            <h2>{lead.name}</h2>
+            <p>{lead.address}</p>
+            <p>
+              Telefon: {lead.phone}
+              {lead.email && (
+                <>
+                  <br />
+                  E-Mail: {lead.email}
+                </>
+              )}
+            </p>
+            <div className="configuration-summary">
+              {configurationLabel(lead.configuration).map((s, i) => (
+                <span key={i}>{s}</span>
+              ))}
+            </div>
+            <p>
+              <b>
+                {lead.quote.total === null
+                  ? "Individuelles Angebot"
+                  : formatPrice(lead.quote.total) + " brutto"}
+              </b>{" "}
+              · Demo-Richtwert
+            </p>
+            {lead.photos?.length > 0 && (
+              <div className="photo-grid">
+                {lead.photos.map((photo, i) => (
+                  <img key={i} src={photo} alt={"Badfoto " + (i + 1)} />
+                ))}
+              </div>
+            )}
+            {lead.notes && <p>{lead.notes}</p>}
+            <label className="field">
+              <span>Demo-Status für {lead.name}</span>
+              <select
+                value={lead.status}
+                onChange={(e) => update(lead.id, e.target.value)}
+              >
+                {LEAD_STATUSES.map((s) => (
+                  <option key={s}>{s}</option>
+                ))}
+              </select>
+            </label>
+          </article>
+        ))}
+      </div>
+      {!leads.length && (
+        <div className="empty">
+          <h2>Noch keine Demo-Anfragen.</h2>
+          <p>Probieren Sie zuerst den Konfigurator aus.</p>
+        </div>
+      )}
+    </section>
+  );
 }

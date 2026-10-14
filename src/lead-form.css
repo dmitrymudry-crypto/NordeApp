@@ -1,1 +1,269 @@
-.lead-form{padding:20px 0 60px}.lead-form h1{font-size:29px;line-height:1.18;color:#254f3d}.lead-form p{font-size:14px;color:#506e5a;line-height:1.6}.lead-form form{display:flex;flex-direction:column;gap:16px;margin-top:24px}.lead-form label{display:flex;flex-direction:column;gap:8px;font-size:13px;font-weight:600;color:#385e49}.lead-form input:not([type=checkbox]),.lead-form textarea{width:100%;border:1px solid #c9d8cb;padding:14px;border-radius:12px;min-height:49px;background:white;color:#203e2d;font-size:16px}.lead-form button[type=submit]{border:none;background:#285d51;color:#fff;min-height:55px;border-radius:14px;display:flex;align-items:center;justify-content:center;gap:12px;font-weight:600;font-size:14px}.lead-form .lead-consent{display:flex;flex-direction:row;align-items:flex-start;font-weight:400;line-height:1.5}.lead-consent input{width:19px;height:19px;flex-shrink:0}.lead-back{background:none;border:none;color:#285d51;padding:12px 0}.lead-error{color:#9c4032!important;display:flex;gap:8px;align-items:flex-start}.lead-form>small{display:block;margin-top:20px;color:#627969;line-height:1.6}.lead-honeypot{position:absolute!important;left:-9999px!important;height:0!important;overflow:hidden!important}
+.lead-back {
+  min-height: 44px;
+  margin-bottom: 23px;
+}
+.lead-form .page-heading h1 {
+  max-width: 550px;
+}
+.lead-form .page-heading p {
+  max-width: 570px;
+}
+.inquiry-layout {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 25px;
+}
+.inquiry-summary {
+  background: #edf3e9;
+  border: 1px solid #d0dfd1;
+  border-radius: 23px;
+  padding: 20px;
+}
+.inquiry-summary .bath-preview {
+  display: none;
+}
+.inquiry-summary h2 {
+  font-size: 19px;
+  margin: 0 0 16px;
+}
+.inquiry-summary .configuration-summary {
+  gap: 6px;
+  margin: 0 0 20px;
+}
+.inquiry-summary .configuration-summary > span {
+  font-size: 12px;
+  padding: 6px 9px;
+  background: #fff;
+}
+.inquiry-summary > .eyebrow {
+  font-size: 10px;
+  margin-bottom: 10px;
+}
+.inquiry-summary > strong {
+  display: block;
+  font-size: 27px;
+  color: #285d51;
+  letter-spacing: -0.7px;
+  line-height: 1.2;
+}
+.inquiry-summary > p {
+  font-size: 12px;
+  color: #4c6a51;
+  line-height: 1.6;
+  margin: 13px 0;
+}
+.inquiry-summary .text-button {
+  min-height: 44px;
+}
+.inquiry-fields {
+  padding: 0;
+}
+.inquiry-fields > h2 {
+  font-size: 21px;
+  margin: 29px 0 21px;
+}
+.inquiry-fields > h2 small {
+  font-size: 12px;
+  font-weight: 400;
+  color: #56735e;
+  margin-left: 6px;
+}
+.inquiry-fields label:not(.lead-consent) {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  position: relative;
+  font-size: 14px;
+  color: #3b5a45;
+  font-weight: 500;
+  margin-bottom: 23px;
+}
+.inquiry-fields label > span {
+  font-size: 12px;
+  color: #5d7764;
+  font-weight: 400;
+}
+.inquiry-fields label > input:not([type="checkbox"]),
+.inquiry-fields textarea {
+  width: 100%;
+  background: #fff;
+  border: 1px solid #9db5a2;
+  border-radius: 14px;
+  padding: 14px;
+  min-height: 53px;
+  font-size: 16px;
+  color: #284b34;
+  font-weight: 400;
+}
+.inquiry-fields input::placeholder,
+.inquiry-fields textarea::placeholder {
+  color: #6d8072;
+}
+.lead-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 26px 0;
+  font-size: 13px;
+  line-height: 1.65;
+}
+.lead-consent input {
+  width: 20px;
+  height: 20px;
+  accent-color: #285d51;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.lead-consent > span {
+  color: #49654f !important;
+  font-size: 13px !important;
+}
+.demo-callout {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid #b3c8ba;
+  border-radius: 15px;
+  background: #f1f6ee;
+  color: #3f6149;
+}
+.demo-callout svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.demo-callout p {
+  font-size: 13px;
+  margin: 0;
+  line-height: 1.6;
+  color: #405e49;
+}
+.inquiry-footnote {
+  font-size: 12px;
+  color: #536f5b;
+  text-align: center;
+  margin: 18px 0;
+  line-height: 1.6;
+}
+.inquiry-fields .upload-area {
+  font-weight: 400 !important;
+  padding: 25px 14px;
+}
+.inquiry-fields .upload-area input {
+  min-height: 0 !important;
+}
+.upload-status {
+  display: block;
+  font-size: 12px;
+  color: #4b6c53;
+  margin: 9px 0 17px;
+  min-height: 16px;
+}
+.inquiry-success {
+  max-width: 620px;
+  margin: auto;
+  padding: 27px 0;
+  text-align: center;
+}
+.success-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 92px;
+  height: 92px;
+  border-radius: 30px;
+  background: #e4efe1;
+  color: #4d7856;
+  margin: 12px auto 31px;
+  animation: appear 0.3s ease-out;
+}
+.inquiry-success > .eyebrow {
+  font-size: 12px;
+  letter-spacing: 1px;
+  margin-bottom: 16px;
+}
+.inquiry-success h1 {
+  font-size: 33px;
+  margin-bottom: 20px;
+}
+.inquiry-success > p {
+  font-size: 16px;
+  color: #526d5b;
+}
+.success-explanation {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  background: #f0f5e9;
+  padding: 18px;
+  border: 1px solid #b6cdb8;
+  border-radius: 16px;
+  font-size: 13px;
+  color: #45654c;
+  text-align: left;
+  line-height: 1.6;
+  margin: 25px 0;
+}
+.success-explanation svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.success-explanation b {
+  display: block;
+}
+.success-reference {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border-bottom: 1px solid #d0e0d2;
+  padding: 16px 0;
+  color: #486950;
+  font-size: 12px;
+  flex-wrap: wrap;
+}
+.success-reference b {
+  margin-left: auto;
+  font-size: 12px;
+}
+.inquiry-success > .configuration-summary {
+  text-align: left;
+  margin: 22px 0 30px;
+}
+.inquiry-success .quiet-button {
+  font-size: 14px;
+  color: #42664a;
+  min-height: 44px;
+}
+@media (min-width: 1000px) {
+  .inquiry-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 360px;
+    gap: 45px;
+    align-items: start;
+  }
+  .inquiry-fields {
+    background: #fff;
+    border: 1px solid #d2dfd5;
+    border-radius: 25px;
+    padding: 27px;
+  }
+  .inquiry-summary {
+    position: sticky;
+    top: 103px;
+  }
+  .inquiry-summary .bath-preview {
+    display: block;
+    margin-bottom: 24px;
+  }
+  .inquiry-field-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  .inquiry-success {
+    padding-top: 60px;
+  }
+  .inquiry-success h1 {
+    font-size: 44px;
+  }
+}
